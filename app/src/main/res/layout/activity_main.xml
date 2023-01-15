@@ -29,8 +29,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:onClick="sensorsView"
-        android:text="Connection"
+        android:text="Sensors"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/connection_button" />
+
+    <Button
+        android:id="@+id/account_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="accountView"
+        android:text="Account"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/sensor_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

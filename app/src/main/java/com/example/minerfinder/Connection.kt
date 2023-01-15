@@ -6,22 +6,25 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.collection.SimpleArrayMap
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.room.Room
 import com.example.minerfinder.Connection.SerializationHelper.serialize
 import com.example.minerfinder.databinding.ActivityConnectionBinding
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.*
 import java.sql.Timestamp
 
+enum class Mode {
+    OFF, DISCOVERING, ADVERTISING, BOTH
+}
 
 // RENAME TO CONNECTION IF USING AGAIN
 class Connection : AppCompatActivity() {
@@ -30,7 +33,7 @@ class Connection : AppCompatActivity() {
     private val STRATEGY: Strategy = Strategy.P2P_CLUSTER
     private val context: Context = this
 
-    private var isAdvertising = false;
+    private var mode = Mode.OFF;
     private var eid : String = ""
     private var randomMode = false
 
@@ -62,30 +65,61 @@ class Connection : AppCompatActivity() {
             randomMode = false
             startAdvertising()
         }
+        viewBinding.offButton.setOnClickListener {
+            randomMode = false
+            modeOff()
+        }
+        viewBinding.disconnectButton.setOnClickListener {
+            disconnectEndpoint()
+        }
         viewBinding.randomButton.setOnClickListener {
-            randomMode = true
-            GlobalScope.launch(Dispatchers.IO) {
-                mode_handler()
-            }
+//            if(!randomMode) {
+//                randomMode = true
+//                GlobalScope.launch(Dispatchers.IO) {
+//                    modeHandler()
+//                }
+//            }
+            startAdvertising(false)
+            startDiscovery(false)
+            mode = Mode.BOTH
+            modeDisplay()
         }
     }
 
-    private suspend fun mode_handler() {
+    private suspend fun modeHandler() {
+        if(mode == Mode.OFF)
+            startDiscovery()
+
         while(randomMode) {
             val rnds = (0..5).random()
             Log.d("confun", rnds.toString())
             if(rnds == 1) {
-                if (isAdvertising) {
-                    stopAdvertising()
-                    startDiscovery()
+                if (mode == Mode.DISCOVERING) {
+                    runOnUiThread {
+                        startAdvertising()
+                    }
                 } else {
-                    stopDiscovery()
-                    startAdvertising()
+                    runOnUiThread {
+                        startDiscovery()
+                    }
                 }
             }
             delay(5000)
         }
+    }
 
+    private suspend fun constantSend(endpointId: String) {
+        var flag = true
+        while(flag){
+            val timestamp = Timestamp(System.currentTimeMillis())
+            val bytesPayload = Payload.fromBytes(serialize(timestamp))
+            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+                .addOnSuccessListener { unused: Void? -> }
+                .addOnFailureListener { e: java.lang.Exception? ->
+                    flag = false
+                }
+            delay(1000)
+        }
     }
 
     private fun checkPermission(permission: String, requestCode: Int) {
@@ -102,44 +136,82 @@ class Connection : AppCompatActivity() {
         return "1"
     }
 
-    private fun startAdvertising() {
-        val advertisingOptions: AdvertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
+    private fun modeDisplay() {
         val connectionMode: TextView = findViewById<TextView>(R.id.connection_mode)
+        connectionMode.text = "Connection Mode: $mode"
+    }
+
+    private fun errorDisplay(e: String) {
+        val errorLog: TextView = findViewById<TextView>(R.id.error_log)
+        errorLog.text = "Error Log: $e"
+    }
+
+    private fun connectionDisplay(m: String) {
+        val connectionReport: TextView = findViewById<TextView>(R.id.connection_report)
+        connectionReport.text = "Connection Report: $m"
+    }
+
+    private fun startAdvertising(singleMode: Boolean = true) {
+        val advertisingOptions: AdvertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
+
+        if(mode == Mode.DISCOVERING && singleMode)
+            stopDiscovery()
 
         Nearby.getConnectionsClient(context)
             .startAdvertising(
                 getLocalUserName(), SERVICE_ID, connectionLifecycleCallback, advertisingOptions
             )
             .addOnSuccessListener { unused: Void? ->
-                connectionMode.text = "Advertising..."
-                this.isAdvertising = true
+                mode = Mode.ADVERTISING
+                modeDisplay()
             }
-            .addOnFailureListener { e: Exception? -> }
+            .addOnFailureListener { e: Exception? ->
+                errorDisplay("Advertising Failed: " + e.toString())
+            }
     }
 
-    private fun startDiscovery() {
+    private fun startDiscovery(singleMode: Boolean = true) {
         val discoveryOptions: DiscoveryOptions = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
-        val connectionMode: TextView = findViewById<TextView>(R.id.connection_mode)
-        this.isAdvertising = false
+
+        if(mode == Mode.ADVERTISING && singleMode)
+            stopAdvertising()
 
         Log.d("FUNCTION", "sd")
 
         Nearby.getConnectionsClient(context)
             .startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
             .addOnSuccessListener { unused: Void? ->
-                connectionMode.text = "Discovering..."
+                mode = Mode.DISCOVERING
+                modeDisplay()
             }
             .addOnFailureListener { e: java.lang.Exception? ->
-                connectionMode.text = "Discovery Failed: " + e.toString()
+                errorDisplay("Discovery Failed: " + e.toString())
             }
+    }
+
+    private fun modeOff() {
+        if(mode == Mode.ADVERTISING)
+            stopAdvertising()
+        else if (mode == Mode.DISCOVERING)
+            stopDiscovery()
+        modeDisplay()
     }
 
     private fun stopAdvertising() {
         Nearby.getConnectionsClient(context).stopAdvertising()
+        mode = Mode.OFF
+        modeDisplay()
     }
 
     private fun stopDiscovery() {
         Nearby.getConnectionsClient(context).stopDiscovery()
+        mode = Mode.OFF
+        modeDisplay()
+    }
+
+    private fun disconnectEndpoint(endpointId: String = eid) {
+        Nearby.getConnectionsClient(context).disconnectFromEndpoint(endpointId)
+        connectionDisplay("Disconnected from $endpointId")
     }
 
     private val endpointDiscoveryCallback: EndpointDiscoveryCallback =
@@ -149,17 +221,20 @@ class Connection : AppCompatActivity() {
                 Nearby.getConnectionsClient(context)
                     .requestConnection(getLocalUserName(), endpointId, connectionLifecycleCallback)
                     .addOnSuccessListener { unused: Void? ->
+                        connectionDisplay("Found endpoint. Requesting connection.")
                         found_eid.add(endpointId)
                         Log.d("eidlist", found_eid.toString())
                     }
-                    .addOnFailureListener { e: java.lang.Exception? -> }
+                    .addOnFailureListener { e: java.lang.Exception? ->
+                        connectionDisplay("Found endpoint. Failed to request connection.")
+                        errorDisplay(e.toString())
+                    }
             }
 
             override fun onEndpointLost(endpointId: String) {
                 // A previously discovered endpoint has gone away.
                 Log.d("status", "lost")
-                val connectionReport: TextView = findViewById<TextView>(R.id.connection_report)
-                connectionReport.text = "Not connected"
+                connectionDisplay("Lost endpoint")
             }
         }
 
@@ -171,21 +246,27 @@ class Connection : AppCompatActivity() {
             }
 
             override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-                val connectionReport: TextView = findViewById<TextView>(R.id.connection_report)
-
                 when (result.status.statusCode) {
                     ConnectionsStatusCodes.STATUS_OK -> {
-                        connectionReport.text = "Connection Made!"
+                        connectionDisplay("Made a connection")
                         val timestamp = Timestamp(System.currentTimeMillis())
 
                         val bytesPayload = Payload.fromBytes(serialize(timestamp))
                         Log.d("MESSAGE", bytesPayload.toString())
-                        if(isAdvertising)
-                            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+                        if(mode == Mode.ADVERTISING) {
+                            GlobalScope.launch(Dispatchers.IO) {
+                                constantSend(endpointId)
+                            }
+                        }
+//                            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
 
                     }
-                    ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {}
-                    ConnectionsStatusCodes.STATUS_ERROR -> {}
+                    ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
+                        connectionDisplay("Connection Rejected")
+                    }
+                    ConnectionsStatusCodes.STATUS_ERROR -> {
+                        errorDisplay("Failed to connect. Status Error.")
+                    }
                     else -> {}
                 }
             }
@@ -194,8 +275,7 @@ class Connection : AppCompatActivity() {
                 // We've been disconnected from this endpoint. No more data can be
                 // sent or received.
                 Log.d("status", "disconnected")
-                val connectionReport: TextView = findViewById<TextView>(R.id.connection_report)
-                connectionReport.text = "Not connected"
+                connectionDisplay("Disconnected from endpoint.")
             }
         }
 
@@ -208,7 +288,16 @@ class Connection : AppCompatActivity() {
 
                 val dataDisplay: TextView = findViewById<TextView>(R.id.data_received)
                 dataDisplay.text = "Message: $receivedBytes"
-                Nearby.getConnectionsClient(context).disconnectFromEndpoint(endpointId)
+                connectionDisplay("Message received.")
+
+                // send a message back for TESTING
+                if(mode == Mode.DISCOVERING) {
+                    val bytesPayload = Payload.fromBytes(serialize("RECEIPT: $receivedBytes"))
+                    Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+                }
+
+                eid = endpointId
+//                Nearby.getConnectionsClient(context).disconnectFromEndpoint(endpointId)
             }
         }
 

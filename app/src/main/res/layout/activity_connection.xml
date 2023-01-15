@@ -7,10 +7,19 @@
     tools:context=".Connection">
 
     <TextView
+        android:id="@+id/error_log"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Error Log: none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
         android:id="@+id/connection_mode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Connection Mode..."
+        android:text="Connection Mode: OFF"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -20,7 +29,7 @@
         android:id="@+id/connection_report"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Connection Report..."
+        android:text="Connection Report: none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/connection_mode" />
@@ -29,7 +38,7 @@
         android:id="@+id/data_received"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Data Received..."
+        android:text="Data Received: none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/connection_report" />
@@ -56,11 +65,31 @@
         tools:layout_editor_absoluteY="410dp" />
 
     <Button
+        android:id="@+id/off_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Off"
+        app:layout_constraintBottom_toTopOf="@id/discover_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:layout_editor_absoluteY="410dp" />
+
+    <Button
         android:id="@+id/random_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Random"
-        app:layout_constraintBottom_toTopOf="@id/discover_button"
+        app:layout_constraintBottom_toTopOf="@id/off_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:layout_editor_absoluteY="410dp" />
+
+    <Button
+        android:id="@+id/disconnect_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Disconnect"
+        app:layout_constraintBottom_toTopOf="@id/random_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:layout_editor_absoluteY="410dp" />

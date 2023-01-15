@@ -1,5 +1,6 @@
 package com.example.minerfinder
 
+//import com.example.minecomms.databinding.ActivityConnectionBinding
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -7,20 +8,19 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
-import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-//import com.example.minecomms.databinding.ActivityConnectionBinding
+import androidx.room.Room
 import com.example.minerfinder.databinding.ActivitySensorsBinding
+import com.example.minerfinder.db.AppDatabase
+import org.json.JSONObject
+import java.io.*
 import java.sql.Timestamp
-import kotlin.math.abs
-import kotlin.math.atan
 import kotlin.math.pow
-import kotlin.math.sqrt
-import java.lang.Math
 
 class Sensors : AppCompatActivity(), SensorEventListener {
 
@@ -216,7 +216,7 @@ class Sensors : AppCompatActivity(), SensorEventListener {
 
         Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
 
-        if(timeDiff >= 20) {
+        if(timeDiff >= 5) {
             step_start_time = step_cur_time
             val comp = get_comp(step_x, step_y)
             val ret = listOf<Any>(step_cur_time, comp[0] / timeDiff, comp[1])
@@ -226,6 +226,12 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             prev_steps = step_count
 
             Log.d("STEP_HIST_LOG", step_hist.toString())
+
+            val json = JSONObject()
+            val data = MovementData(comp[1].toFloat(), comp[0].toFloat())
+            json.put(Timestamp(System.currentTimeMillis()).toString(), data)
+            Log.d("json", json.toString())
+            saveJson(json)
         }
 
         step_mid_time = step_cur_time
@@ -233,6 +239,104 @@ class Sensors : AppCompatActivity(), SensorEventListener {
 
         Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
 
+    }
+
+    private fun readJson(fileName: String) {
+//        val file: File = File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "myJson.json")
+//        val fileReader = FileReader(file)
+//        val bufferedReader = BufferedReader(fileReader)
+//        val stringBuilder = StringBuilder()
+////        var line: String = bufferedReader.readLine()
+////        while((line = bufferedReader.readLine()) != null)
+////        while(line != null && !line.isEmpty()) {
+////            stringBuilder.append(line).append("\n")
+////            line = bufferedReader.readLine()
+////        }
+//        var line: String = ""
+//        while (bufferedReader.readLine() != null.also { line = it!! } && !line.isEmpty()) {
+//            stringBuilder.append(line).append("\n")
+//            line = bufferedReader.readLine()
+//        }
+////        while (line != null) {
+////            stringBuilder.append(line).append("\n")
+////            line = bufferedReader.readLine()
+////        }
+//        bufferedReader.close()
+//        // This response will have Json Format String
+//        // This response will have Json Format String
+//        val response = stringBuilder.toString()
+//        Log.d("json read", response.toString())
+
+        val fileName = "${getLocalUserName()}.json"
+        val fileInputStream = openFileInput(fileName)
+        val jsonString = fileInputStream.bufferedReader().use { it.readText() }
+        val jsonObject = JSONObject(jsonString)
+        Log.d("json read", jsonObject.toString())
+    }
+
+    private fun saveJson(jsonObject: JSONObject) {
+//        val output: Writer
+//        val file = createFile()
+//        Log.d("json", file.toString())
+//        output = BufferedWriter(FileWriter(file))
+//        output.write(jsonString)
+//        output.close()
+//        Log.d("json out", output.toString())
+
+        val fileName = "${getLocalUserName()}.json"
+        val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
+//        val jsonObject = JSONObject()
+//        jsonObject.put(Timestamp(System.currentTimeMillis()).toString(), jsonString)
+        val jsonString = jsonObject.toString()
+        fileOutputStream.write(jsonString.toByteArray())
+        fileOutputStream.close()
+
+        readJson(fileName)
+    }
+
+    private fun createFile(){
+        val fileName = "myFile.json"
+        val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
+        val jsonObject = JSONObject()
+        jsonObject.put("key", "value")
+        val jsonString = jsonObject.toString()
+        fileOutputStream.write(jsonString.toByteArray())
+        fileOutputStream.close()
+
+
+//        val fileName = "myJson.json"
+//        val storageDir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+//        if (storageDir != null) {
+//            if(!storageDir.exists()){
+//                storageDir.mkdir()
+//            }
+//        }
+//        return File(storageDir.toString(), fileName)
+
+//        return File.createTempFile(
+//            fileName,
+//            ".json",
+//            storageDir
+//        )
+    }
+
+    fun getLocalUserName(): String {
+        val db : AppDatabase = Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java, "database-name"
+        ).allowMainThreadQueries().fallbackToDestructiveMigration().build()
+
+        val user = db.userDao().findActive()
+
+        if (user != null) {
+            return user.username.toString()
+        }
+
+        return "x"
+    }
+
+    private fun writeJson(){
+        var json = JSONObject()
     }
 
     fun get_coord(magnitude: Double, degrees: Double): List<Double> {
