@@ -75,10 +75,10 @@
         tools:layout_editor_absoluteY="410dp" />
 
     <Button
-        android:id="@+id/random_button"
+        android:id="@+id/both_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Random"
+        android:text="Both"
         app:layout_constraintBottom_toTopOf="@id/off_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -89,7 +89,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Disconnect"
-        app:layout_constraintBottom_toTopOf="@id/random_button"
+        app:layout_constraintBottom_toTopOf="@id/both_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:layout_editor_absoluteY="410dp" />

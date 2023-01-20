@@ -19,12 +19,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.*
 import java.sql.Timestamp
 
-enum class Mode {
-    OFF, DISCOVERING, ADVERTISING, BOTH
-}
 
 // RENAME TO CONNECTION IF USING AGAIN
 class Connection : AppCompatActivity() {
@@ -33,9 +31,11 @@ class Connection : AppCompatActivity() {
     private val STRATEGY: Strategy = Strategy.P2P_CLUSTER
     private val context: Context = this
 
-    private var mode = Mode.OFF;
+    private var isAdvertising: Boolean = false
+    private var isDiscovering: Boolean = false
     private var eid : String = ""
-    private var randomMode = false
+
+    var userNumber: String = "x"
 
     private lateinit var viewBinding: ActivityConnectionBinding
 
@@ -46,6 +46,8 @@ class Connection : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        userNumber = Helper().getLocalUserName(applicationContext)
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_connection)
 
@@ -58,56 +60,26 @@ class Connection : AppCompatActivity() {
         setContentView(viewBinding.root)
 
         viewBinding.discoverButton.setOnClickListener {
-            randomMode = false
             startDiscovery()
         }
         viewBinding.advertiseButton.setOnClickListener {
-            randomMode = false
             startAdvertising()
         }
         viewBinding.offButton.setOnClickListener {
-            randomMode = false
             modeOff()
         }
         viewBinding.disconnectButton.setOnClickListener {
             disconnectEndpoint()
         }
-        viewBinding.randomButton.setOnClickListener {
-//            if(!randomMode) {
-//                randomMode = true
-//                GlobalScope.launch(Dispatchers.IO) {
-//                    modeHandler()
-//                }
-//            }
+        viewBinding.bothButton.setOnClickListener {
             startAdvertising(false)
             startDiscovery(false)
-            mode = Mode.BOTH
             modeDisplay()
         }
     }
 
-    private suspend fun modeHandler() {
-        if(mode == Mode.OFF)
-            startDiscovery()
 
-        while(randomMode) {
-            val rnds = (0..5).random()
-            Log.d("confun", rnds.toString())
-            if(rnds == 1) {
-                if (mode == Mode.DISCOVERING) {
-                    runOnUiThread {
-                        startAdvertising()
-                    }
-                } else {
-                    runOnUiThread {
-                        startDiscovery()
-                    }
-                }
-            }
-            delay(5000)
-        }
-    }
-
+    // For testing a constant connection
     private suspend fun constantSend(endpointId: String) {
         var flag = true
         while(flag){
@@ -132,11 +104,21 @@ class Connection : AppCompatActivity() {
         }
     }
 
-    private fun getLocalUserName(): String {
-        return "1"
-    }
+//    private fun getLocalUserName(): String {
+//        return "1"
+//    }
 
     private fun modeDisplay() {
+        var mode: String = "OFF"
+        if (isAdvertising && isDiscovering) {
+            mode = "BOTH"
+        }
+        else if (isAdvertising) {
+            mode = "ADVERTISING"
+        }
+        else if (isDiscovering) {
+            mode = "DISCOVERING"
+        }
         val connectionMode: TextView = findViewById<TextView>(R.id.connection_mode)
         connectionMode.text = "Connection Mode: $mode"
     }
@@ -151,18 +133,23 @@ class Connection : AppCompatActivity() {
         connectionReport.text = "Connection Report: $m"
     }
 
+    private fun messageDisplay(m: String) {
+        val dataDisplay: TextView = findViewById<TextView>(R.id.data_received)
+        dataDisplay.text = "Message: $m"
+    }
+
     private fun startAdvertising(singleMode: Boolean = true) {
         val advertisingOptions: AdvertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
 
-        if(mode == Mode.DISCOVERING && singleMode)
+        if(isDiscovering && singleMode)
             stopDiscovery()
 
         Nearby.getConnectionsClient(context)
             .startAdvertising(
-                getLocalUserName(), SERVICE_ID, connectionLifecycleCallback, advertisingOptions
+                userNumber, SERVICE_ID, connectionLifecycleCallback, advertisingOptions
             )
             .addOnSuccessListener { unused: Void? ->
-                mode = Mode.ADVERTISING
+                isAdvertising = true
                 modeDisplay()
             }
             .addOnFailureListener { e: Exception? ->
@@ -173,7 +160,7 @@ class Connection : AppCompatActivity() {
     private fun startDiscovery(singleMode: Boolean = true) {
         val discoveryOptions: DiscoveryOptions = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
 
-        if(mode == Mode.ADVERTISING && singleMode)
+        if(isAdvertising && singleMode)
             stopAdvertising()
 
         Log.d("FUNCTION", "sd")
@@ -181,7 +168,7 @@ class Connection : AppCompatActivity() {
         Nearby.getConnectionsClient(context)
             .startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
             .addOnSuccessListener { unused: Void? ->
-                mode = Mode.DISCOVERING
+                isDiscovering = true
                 modeDisplay()
             }
             .addOnFailureListener { e: java.lang.Exception? ->
@@ -190,22 +177,22 @@ class Connection : AppCompatActivity() {
     }
 
     private fun modeOff() {
-        if(mode == Mode.ADVERTISING)
+        if(isAdvertising)
             stopAdvertising()
-        else if (mode == Mode.DISCOVERING)
+        if (isDiscovering)
             stopDiscovery()
         modeDisplay()
     }
 
     private fun stopAdvertising() {
         Nearby.getConnectionsClient(context).stopAdvertising()
-        mode = Mode.OFF
+        isAdvertising = false
         modeDisplay()
     }
 
     private fun stopDiscovery() {
         Nearby.getConnectionsClient(context).stopDiscovery()
-        mode = Mode.OFF
+        isDiscovering = false
         modeDisplay()
     }
 
@@ -219,7 +206,7 @@ class Connection : AppCompatActivity() {
             override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
                 // An endpoint was found. We request a connection to it.
                 Nearby.getConnectionsClient(context)
-                    .requestConnection(getLocalUserName(), endpointId, connectionLifecycleCallback)
+                    .requestConnection(userNumber, endpointId, connectionLifecycleCallback)
                     .addOnSuccessListener { unused: Void? ->
                         connectionDisplay("Found endpoint. Requesting connection.")
                         found_eid.add(endpointId)
@@ -249,15 +236,16 @@ class Connection : AppCompatActivity() {
                 when (result.status.statusCode) {
                     ConnectionsStatusCodes.STATUS_OK -> {
                         connectionDisplay("Made a connection")
-                        val timestamp = Timestamp(System.currentTimeMillis())
-
-                        val bytesPayload = Payload.fromBytes(serialize(timestamp))
-                        Log.d("MESSAGE", bytesPayload.toString())
-                        if(mode == Mode.ADVERTISING) {
-                            GlobalScope.launch(Dispatchers.IO) {
-                                constantSend(endpointId)
-                            }
-                        }
+                        sendTimestamps(endpointId)
+//                        val timestamp = Timestamp(System.currentTimeMillis())
+//
+//                        val bytesPayload = Payload.fromBytes(serialize(timestamp))
+//                        Log.d("MESSAGE", bytesPayload.toString())
+//                        if(isAdvertising) {
+//                            GlobalScope.launch(Dispatchers.IO) {
+//                                constantSend(endpointId)
+//                            }
+//                        }
 //                            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
 
                     }
@@ -286,15 +274,17 @@ class Connection : AppCompatActivity() {
                 val receivedBytes = SerializationHelper.deserialize(payload.asBytes())
                 Log.d("MESSAGE", receivedBytes.toString())
 
-                val dataDisplay: TextView = findViewById<TextView>(R.id.data_received)
-                dataDisplay.text = "Message: $receivedBytes"
+//                val dataDisplay: TextView = findViewById<TextView>(R.id.data_received)
+//                dataDisplay.text = "Message: $receivedBytes"
                 connectionDisplay("Message received.")
 
+                evalMessage(receivedBytes.toString(), endpointId)
+
                 // send a message back for TESTING
-                if(mode == Mode.DISCOVERING) {
-                    val bytesPayload = Payload.fromBytes(serialize("RECEIPT: $receivedBytes"))
-                    Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
-                }
+//                if(isDiscovering) {
+//                    val bytesPayload = Payload.fromBytes(serialize("RECEIPT: $receivedBytes"))
+//                    Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+//                }
 
                 eid = endpointId
 //                Nearby.getConnectionsClient(context).disconnectFromEndpoint(endpointId)
@@ -329,5 +319,121 @@ class Connection : AppCompatActivity() {
             val objectInputStream = ObjectInputStream(byteArrayInputStream)
             return objectInputStream.readObject()
         }
+    }
+
+
+    // HANDLE FILE TRANSFERS
+
+    // add 0 to end of file if its timestamps; 1 if its miner data
+
+    fun evalMessage(message: String, endpointId: String) {
+        Log.d("evalmes", message)
+        if (message.last() == '0') {
+            GlobalScope.launch(Dispatchers.IO) {
+                evalTimestamps(message.dropLast(1), endpointId)
+            }
+            messageDisplay("Received timestamp.csv")
+        }
+        else if (message.last() == '1') {
+            readMiner(message.dropLast(1))
+        }
+    }
+
+    fun sendTimestamps(endpointId: String) {
+        val fileName = "timestamp.csv"
+        val file = File(filesDir, fileName)
+        val contents = file.bufferedReader().readText() + "0"
+        val bytesPayload = Payload.fromBytes(serialize(contents))
+        Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+    }
+
+    suspend fun evalTimestamps(partnerStamps: String, endpointId: String) {
+        val partnerCSV = partnerStamps.split(",").toMutableList()
+
+        val fileName = "timestamp.csv"
+        val file = File(filesDir, fileName)
+        var timestampString: String
+
+        if (file.exists()) {
+            val rows = file.bufferedReader().readText()
+            val myCSV = rows.split(",").toMutableList()
+
+            for (i in 0 until myCSV.size) {
+                // if partner doesn't have that file or mine is newer send it to them
+                if (i > partnerCSV.size-1 || Timestamp.valueOf(myCSV[i]) > Timestamp.valueOf(partnerCSV[i])) {
+                    sendMiner(endpointId, i+1, Timestamp.valueOf(myCSV[i]))
+                    delay(1000)
+                }
+            }
+        }
+    }
+
+    fun sendMiner(endpointId: String, minerNumber: Int, timestamp: Timestamp) {
+        val fileName = "$minerNumber.json"
+        val file = File(filesDir, fileName)
+        if (file.exists()) {
+            Log.d("csv%", minerNumber.toString())
+            val contents = file.readText() + ",$minerNumber,$timestamp" + "1"
+            val bytesPayload = Payload.fromBytes(serialize(contents))
+            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+        }
+    }
+
+    fun readMiner(message: String) {
+        val csv = message.split(",").toMutableList()
+        val minerNumber: Int = csv[csv.size.toInt()-2].toInt()
+        val timestamp: Timestamp = Timestamp.valueOf(csv[csv.size.toInt()-1])
+//        csv.removeAt(csv.size.toInt()-1)
+//        csv.removeAt(csv.size.toInt()-1)
+        messageDisplay("Received $minerNumber.json")
+        Log.d("csv", message)
+        Log.d("csv#", minerNumber.toString())
+
+//        filesDir.walk().forEach {
+//            Log.d("dir", it.toString())
+//        }
+
+        // update miner data file
+        val fileName = "$minerNumber.json"
+        val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
+        fileOutputStream.write(csv[0].toByteArray())
+        fileOutputStream.close()
+
+        // update timestamp file
+        updateTimestampFile(minerNumber, timestamp)
+    }
+
+    fun updateTimestampFile(userNumber: Int, currentTimestamp: Timestamp = Timestamp(System.currentTimeMillis())){
+        val userNumberIdx = userNumber - 1
+        val fileName = "timestamp.csv"
+        val file = File(filesDir, fileName)
+        var timestampString: String
+
+        if (file.exists()) {
+            val rows = file.bufferedReader().readText()
+            val csv = rows.split(",").toMutableList()
+            Log.d("json", userNumber.toString())
+            while (csv.size < userNumber) {
+                csv.add(Timestamp(0).toString())
+            }
+            csv[userNumberIdx] = currentTimestamp.toString()
+            timestampString = csv.joinToString(",")
+            Log.d("json timestamp", timestampString.toString())
+        }
+        else {
+            timestampString = ""
+            for (i in 0 .. userNumberIdx) {
+                timestampString += if (i == userNumberIdx) {
+                    Timestamp(System.currentTimeMillis()).toString()
+                } else {
+                    Timestamp(0).toString() + ","
+                }
+            }
+        }
+
+        val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
+        fileOutputStream.write(timestampString.toByteArray())
+        fileOutputStream.close()
+
     }
 }
