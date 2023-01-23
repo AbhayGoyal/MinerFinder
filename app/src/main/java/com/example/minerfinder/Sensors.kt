@@ -9,16 +9,19 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
-import android.os.Environment
+import android.text.method.ScrollingMovementMethod
 import android.util.Log
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.room.Room
 import com.example.minerfinder.databinding.ActivitySensorsBinding
-import com.example.minerfinder.db.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.io.*
+import java.io.File
 import java.sql.Timestamp
 import kotlin.math.pow
 
@@ -76,6 +79,10 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         checkPermissions()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            step_handler()
+        }
     }
 
     private fun checkPermissions() {
@@ -135,7 +142,7 @@ class Sensors : AppCompatActivity(), SensorEventListener {
                 SensorManager.SENSOR_DELAY_UI
             )
         }
-        step_handler()
+//        step_handler()
     }
 
     override fun onPause() {
@@ -158,7 +165,7 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             step_count = event.values[0].toInt()
             Log.d("STEPS", step_count.toString())
         }
-        step_handler()
+//        step_handler()
     }
 
     // Compute the three orientation angles based on the most recent readings from
@@ -191,56 +198,106 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         return azimuth
     }
 
-    private fun step_handler() {
-        // set up first ever run
-        if(step_start_time == Timestamp(0)) {
-            step_start_time = Timestamp(System.currentTimeMillis())
-            step_cur_time = step_start_time
-            step_mid_time = step_cur_time
-            prev_steps = step_count
+    private fun randomPillar(pillar: String, chance: Float): List<Any> {
+        val random = java.util.Random()
+        val randOdd = random.nextFloat()
+        if (chance > randOdd) {
+            var next = pillar[0].code + 1
+            if (next == 'Z'.code + 1)
+                next = 'A'.code
+            return listOf(true, next.toChar().toString())
         }
-        else {
-            step_cur_time = Timestamp(System.currentTimeMillis())
-        }
+        return listOf(false, pillar)
+    }
 
-        // inside 60 sec interval
-        timeDiff = ((step_cur_time.time - step_start_time.time) / 1000.0)
-
-        val mag = (step_count - prev_steps) * avg_step_size / ((step_cur_time.time - step_mid_time.time) / 1000.0)
-        prev_steps = step_count
-        step_mid_time = step_cur_time
-        val angle = getAzimuth()
-        val coord = get_coord(mag, angle.toDouble())
-        Log.d("STEP_HIST_MGC", listOf(mag, angle, coord).toString())
-        this.step_x += coord[0].toInt()
-        this.step_y += coord[1].toInt()
-
-        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
-
-        if(timeDiff >= 5) {
-            step_start_time = step_cur_time
-            val comp = get_comp(step_x, step_y)
-            val ret = listOf<Any>(step_cur_time, comp[0] / timeDiff, comp[1])
-            step_hist.add(ret)
-            step_x = 0.0
-            step_y = 0.0
-            prev_steps = step_count
-
-            Log.d("STEP_HIST_LOG", step_hist.toString())
-
-//            val json = JSONObject()
-            val data = MovementData(comp[1].toFloat(), comp[0].toFloat())
-//            json.put(Timestamp(System.currentTimeMillis()).toString(), data)
-//            Log.d("json", json.toString())
+    private suspend fun step_handler() {
+        var lastSteps: Int = step_count
+        var currentSteps: Int
+        var angle: Int = 0
+        var distance: Double = 0.0
+        var pillar: String = "A"
+        val INTERVAL: Long = 120 // seconds
+        while (true) {
+            var x: Double = 0.0
+            var y: Double = 0.0
+            val startTime = System.currentTimeMillis()
+            for (i in 0 until INTERVAL) {
+                delay(1000)
+                Log.d("read 99", step_count.toString())
+                currentSteps = step_count - lastSteps
+                lastSteps = step_count
+                distance = currentSteps * avg_step_size
+                angle = getAzimuth()
+                val coords = get_coord(distance, angle.toDouble())
+                x += coords[0]
+                y += coords[1]
+                val res = randomPillar(pillar, 0.1f)
+                if (coords[0] > 0 && res[0] as Boolean) {
+                    pillar = res[1] as String
+                    break
+                }
+            }
+            val comp = get_comp(x, y)
+            x = 0.0
+            y = 0.0
+            // velo in m/s
+            val timeDiff = (System.currentTimeMillis() - startTime) / 1000
+            val data = MovementData(comp[1].toFloat(), (comp[0] / timeDiff).toFloat(), pillar)
+            Log.d("movdata", data.toString())
             saveJson(data.toString())
         }
-
-        step_mid_time = step_cur_time
-        prev_steps = step_count
-
-        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
-
     }
+
+//    private fun step_handler2() {
+//        // set up first ever run
+//        if(step_start_time == Timestamp(0)) {
+//            step_start_time = Timestamp(System.currentTimeMillis())
+//            step_cur_time = step_start_time
+//            step_mid_time = step_cur_time
+//            prev_steps = step_count
+//        }
+//        else {
+//            step_cur_time = Timestamp(System.currentTimeMillis())
+//        }
+//
+//        // inside 60 sec interval
+//        timeDiff = ((step_cur_time.time - step_start_time.time) / 1000.0)
+//
+//        val mag = (step_count - prev_steps) * avg_step_size / ((step_cur_time.time - step_mid_time.time) / 1000.0)
+//        prev_steps = step_count
+//        step_mid_time = step_cur_time
+//        val angle = getAzimuth()
+//        val coord = get_coord(mag, angle.toDouble())
+//        Log.d("STEP_HIST_MGC", listOf(mag, angle, coord).toString())
+//        this.step_x += coord[0].toInt()
+//        this.step_y += coord[1].toInt()
+//
+//        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
+//
+//        if(timeDiff >= 5) {
+//            step_start_time = step_cur_time
+//            val comp = get_comp(step_x, step_y)
+//            val ret = listOf<Any>(step_cur_time, comp[0] / timeDiff, comp[1])
+//            step_hist.add(ret)
+//            step_x = 0.0
+//            step_y = 0.0
+//            prev_steps = step_count
+//
+//            Log.d("STEP_HIST_LOG", step_hist.toString())
+//
+////            val json = JSONObject()
+//            val data = MovementData(comp[1].toFloat(), comp[0].toFloat(), "A")
+////            json.put(Timestamp(System.currentTimeMillis()).toString(), data)
+////            Log.d("json", json.toString())
+//            saveJson(data.toString())
+//        }
+//
+//        step_mid_time = step_cur_time
+//        prev_steps = step_count
+//
+//        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
+//
+//    }
 
     private fun readJson(fileName: String) {
         val fileName = "${Helper().getLocalUserName(applicationContext)}.json"
@@ -268,9 +325,28 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         Log.d("json file", jsonObject.toString())
         val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
         jsonObject.put(Timestamp(System.currentTimeMillis()).toString(), jsonString)
+
+        // limit ot 40 items in json object for testing
+        while (jsonObject.length() > 40) {
+            val firstKey = jsonObject.keys().next()
+            jsonObject.remove(firstKey)
+        }
+        while (jsonObject.length() > 0) {
+            val firstKey = jsonObject.keys().next()
+            if ((Timestamp(System.currentTimeMillis()).time - Timestamp.valueOf(firstKey).time) / 1000 > 3600)
+                jsonObject.remove(firstKey)
+            else
+                break
+        }
+
         val jsonOutString = jsonObject.toString()
         fileOutputStream.write(jsonOutString.toByteArray())
         fileOutputStream.close()
+
+
+        runOnUiThread {
+            displayJson(jsonOutString)
+        }
 
         updateTimestampFile(userNumber.toInt())
         Log.d("json", file.toString())
@@ -311,6 +387,12 @@ class Sensors : AppCompatActivity(), SensorEventListener {
 
     }
 
+    private fun displayJson(m: String) {
+        val minerDisplay: TextView = findViewById<TextView>(R.id.miner_data)
+        minerDisplay.movementMethod = ScrollingMovementMethod()
+        minerDisplay.text = m
+    }
+
 //    fun getLocalUserName(): String {
 //        val db : AppDatabase = Room.databaseBuilder(
 //            applicationContext,
@@ -328,23 +410,41 @@ class Sensors : AppCompatActivity(), SensorEventListener {
 
     fun get_coord(magnitude: Double, degrees: Double): List<Double> {
         val angle = Math.toRadians(degrees)
-        val x = magnitude * Math.sin(angle)
-        val y = magnitude * Math.cos(angle)
+        val x = magnitude * Math.cos(angle)
+        val y = magnitude * Math.sin(angle)
         return listOf(x,y)
     }
 
     fun get_comp(x: Double, y: Double): List<Double> {
-        var adj = 0
-        if(x > 0.0 && y < 0.0)
-            adj = 90
-        else if(x < 0.0 && y < 0.0)
-            adj = 180
-        else if(x < 0.0 && y > 0.0)
-            adj = 270
+//        var adj = 0
+//        if(x > 0.0 && y < 0.0)
+//            adj = 90
+//        else if(x < 0.0 && y < 0.0)
+//            adj = 180
+//        else if(x < 0.0 && y > 0.0)
+//            adj = 270
 
         val mag = (x.pow(2) + y.pow(2)).pow(0.5)
-        val angle = Math.toDegrees(Math.acos(y / mag))
+        var angle = Math.toDegrees(Math.atan2(y, x))
+//        val angle = Math.toDegrees(Math.acos(y / mag))
+        if (angle < 0)
+            angle += 360
 
         return listOf(mag, angle)
+    }
+
+    private fun ratios(jsonObject: JSONObject) {
+        for (key in jsonObject.keys()) {
+            val value = jsonObject.get(key)
+            println("Key: $key, Value: $value")
+        }
+
+//        while (jsonObject.length() > 0) {
+//            val firstKey = jsonObject.keys().next()
+//            if ((Timestamp(System.currentTimeMillis()).time - Timestamp.valueOf(firstKey).time) / 1000 > 3600)
+//                jsonObject.remove(firstKey)
+//            else
+//                break
+//        }
     }
 }
