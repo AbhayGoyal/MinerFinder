@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 import java.sql.Timestamp
+import kotlin.math.abs
 import kotlin.math.pow
 
 
@@ -202,10 +203,8 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         val random = java.util.Random()
         val randOdd = random.nextFloat()
         if (chance > randOdd) {
-            var next = pillar[0].code + 1
-            if (next == 'Z'.code + 1)
-                next = 'A'.code
-            return listOf(true, next.toChar().toString())
+            val randomLetter = 'A' + random.nextInt(('P' - 'A') + 1)
+            return listOf(true, randomLetter.toString())
         }
         return listOf(false, pillar)
     }
@@ -231,8 +230,8 @@ class Sensors : AppCompatActivity(), SensorEventListener {
                 val coords = get_coord(distance, angle.toDouble())
                 x += coords[0]
                 y += coords[1]
-                val res = randomPillar(pillar, 0.1f)
-                if (coords[0] > 0 && res[0] as Boolean) {
+                val res = randomPillar(pillar, 0.3f)
+                if (abs(coords[0]) > 0 && res[0] as Boolean) {
                     pillar = res[1] as String
                     break
                 }
@@ -242,7 +241,8 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             y = 0.0
             // velo in m/s
             val timeDiff = (System.currentTimeMillis() - startTime) / 1000
-            val data = MovementData(comp[1].toFloat(), (comp[0] / timeDiff).toFloat(), pillar)
+//            val data = MovementData(comp[1].toFloat(), (comp[0] / timeDiff).toFloat(), pillar)
+            val data = comp[1].toFloat().toString() + "," + (comp[0] / timeDiff).toFloat() + "," + pillar
             Log.d("movdata", data.toString())
             saveJson(data.toString())
         }
@@ -305,6 +305,8 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         val jsonString = fileInputStream.bufferedReader().use { it.readText() }
         val jsonObject = JSONObject(jsonString)
         Log.d("json read", jsonObject.toString())
+        val pillarRatios = ratios(jsonObject)
+        regionRatios(pillarRatios)
     }
 
     private fun saveJson(jsonString: String) {
@@ -390,7 +392,7 @@ class Sensors : AppCompatActivity(), SensorEventListener {
     private fun displayJson(m: String) {
         val minerDisplay: TextView = findViewById<TextView>(R.id.miner_data)
         minerDisplay.movementMethod = ScrollingMovementMethod()
-        minerDisplay.text = m
+        minerDisplay.text = "Miner Data:\n$m"
     }
 
 //    fun getLocalUserName(): String {
@@ -433,18 +435,98 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         return listOf(mag, angle)
     }
 
-    private fun ratios(jsonObject: JSONObject) {
+    // timespan in seconds
+//    private fun ratios(jsonObject: JSONObject, timespan: Int = 10800) {
+//        val pillarCounts = mutableMapOf<String, Int>()
+//        var isFirst = true
+//        var oldTime = Timestamp(0)
+//        var timeDiff = 0
+//        for (key in jsonObject.keys()) {
+//            val values = jsonObject.get(key).toString().split(",")
+//            val pillar = values[2]
+//            val time = Timestamp.valueOf(key)
+//
+//            if (!isFirst) {
+//                timeDiff = ((time.time - oldTime.time) / 1000).toInt() // in seconds
+//            }
+//            else {
+//                isFirst = false
+//                timeDiff = 120
+//            }
+//            oldTime = time
+//
+//            // check if were within timespan
+//            if ((System.currentTimeMillis() - time.time) / 1000 > timespan) {
+//                continue
+//            }
+//
+//            if (pillarCounts.containsKey(pillar)) {
+//                pillarCounts[pillar] = pillarCounts[pillar]!! + timeDiff
+//            } else {
+//                pillarCounts[pillar] = timeDiff
+//            }
+//        }
+//
+//        Log.d("ratios", pillarCounts.toString())
+//
+//        val total = pillarCounts.values.sum()
+//        val letterRatios = pillarCounts.mapValues { (_, count) -> count.toFloat() / total }
+//        Log.d("ratios", letterRatios.toString())
+//    }
+
+    private fun ratios(jsonObject: JSONObject, timespan: Int = 10800): Map<String, Float> {
+        val pillarCounts = mutableMapOf<String, Int>()
+        var isFirst = true
+        var lastPiller = "none"
+        var timeDiff = 0
         for (key in jsonObject.keys()) {
-            val value = jsonObject.get(key)
-            println("Key: $key, Value: $value")
+            val values = jsonObject.get(key).toString().split(",")
+            val pillar = values[2]
+            val time = Timestamp.valueOf(key)
+
+            // check if were within timespan
+            if ((System.currentTimeMillis() - time.time) / 1000 > timespan) {
+                continue
+            }
+
+            // only add if changing pillars
+            if (lastPiller == pillar) {
+                continue
+            }
+            lastPiller = pillar
+
+            if (pillarCounts.containsKey(pillar)) {
+                pillarCounts[pillar] = pillarCounts[pillar]!! + 1
+            } else {
+                pillarCounts[pillar] = 1
+            }
         }
 
-//        while (jsonObject.length() > 0) {
-//            val firstKey = jsonObject.keys().next()
-//            if ((Timestamp(System.currentTimeMillis()).time - Timestamp.valueOf(firstKey).time) / 1000 > 3600)
-//                jsonObject.remove(firstKey)
-//            else
-//                break
-//        }
+        Log.d("ratios", pillarCounts.toString())
+
+        val total = pillarCounts.values.sum()
+        val letterRatios = pillarCounts.mapValues { (_, count) -> count.toFloat() / total }
+        Log.d("ratios", letterRatios.toString())
+
+        return letterRatios
+    }
+
+    fun regionRatios(pillarRatios: Map<String, Float>) {
+        val regions = mutableMapOf("ABCD" to 0f, "EFGH" to 0f, "IJKL" to 0f, "MNOP" to 0f)
+
+        for ((key, value) in pillarRatios) {
+            for ((rKey, rValue) in regions) {
+                if (rKey.toString().contains(key)) {
+                    regions[rKey] = regions[rKey]!! + value
+                }
+            }
+        }
+
+        runOnUiThread {
+            val regionsDisplay: TextView = findViewById<TextView>(R.id.region_data)
+            regionsDisplay.text = "Region Data:\n$regions\n"
+        }
+
+        Log.d("regionsratios", regions.toString())
     }
 }
