@@ -305,11 +305,17 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         val jsonString = fileInputStream.bufferedReader().use { it.readText() }
         val jsonObject = JSONObject(jsonString)
         Log.d("json read", jsonObject.toString())
-        val pillarRatios = ratios(jsonObject)
-        regionRatios(pillarRatios)
+//        val pillarRatios30 = ratios(jsonObject, 30*60)
+//        val pillarRatios60 = ratios(jsonObject, 60*60)
+//        val pillarRatios180 = ratios(jsonObject, 180*60)
+//        regionRatios(pillarRatios30, 30*60)
+//        regionRatios(pillarRatios60, 60*60)
+//        regionRatios(pillarRatios180, 180*60)
+        regionHandler(jsonObject)
     }
 
     private fun saveJson(jsonString: String) {
+        val STORAGE_TIME = 3 * 3600 // in seconds: x hours * seconds
         val userNumber: String = Helper().getLocalUserName(applicationContext)
         val fileName = "${userNumber}.json"
         val file = File(filesDir, fileName)
@@ -335,7 +341,7 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         }
         while (jsonObject.length() > 0) {
             val firstKey = jsonObject.keys().next()
-            if ((Timestamp(System.currentTimeMillis()).time - Timestamp.valueOf(firstKey).time) / 1000 > 3600)
+            if ((Timestamp(System.currentTimeMillis()).time - Timestamp.valueOf(firstKey).time) / 1000 > STORAGE_TIME)
                 jsonObject.remove(firstKey)
             else
                 break
@@ -511,22 +517,45 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         return letterRatios
     }
 
-    fun regionRatios(pillarRatios: Map<String, Float>) {
+    fun regionRatios(pillarRatios: Map<String, Float>): MutableMap<String, Float> {
         val regions = mutableMapOf("ABCD" to 0f, "EFGH" to 0f, "IJKL" to 0f, "MNOP" to 0f)
 
         for ((key, value) in pillarRatios) {
             for ((rKey, rValue) in regions) {
-                if (rKey.toString().contains(key)) {
+                if (rKey.contains(key)) {
                     regions[rKey] = regions[rKey]!! + value
                 }
             }
         }
 
-        runOnUiThread {
-            val regionsDisplay: TextView = findViewById<TextView>(R.id.region_data)
-            regionsDisplay.text = "Region Data:\n$regions\n"
-        }
+//        runOnUiThread {
+//            val regionsDisplay: TextView = findViewById<TextView>(R.id.region_data_30)
+//            regionsDisplay.text = "Region Data: " + (timespan / 60).toString() + "\n$regions\n"
+//        }
 
         Log.d("regionsratios", regions.toString())
+        return regions
+    }
+
+    fun regionHandler(jsonObject: JSONObject) {
+        val pillar30 = ratios(jsonObject, 30*60)
+        val pillar60 = ratios(jsonObject, 60*60)
+        val pillar90 = ratios(jsonObject, 90*60)
+        val pillar120 = ratios(jsonObject, 120*60)
+        val region30 = regionRatios(pillar30)
+        val region60 = regionRatios(pillar60)
+        val region90 = regionRatios(pillar90)
+        val region120 = regionRatios(pillar120)
+
+        runOnUiThread {
+            val regions30Display: TextView = findViewById<TextView>(R.id.region_data30)
+            regions30Display.text = "Region Data (30 min):\n$region30\n"
+            val regions60Display: TextView = findViewById<TextView>(R.id.region_data60)
+            regions60Display.text = "Region Data (60 min):\n$region60\n"
+            val regions90Display: TextView = findViewById<TextView>(R.id.region_data90)
+            regions90Display.text = "Region Data (180 min):\n$region90\n"
+            val regions120Display: TextView = findViewById<TextView>(R.id.region_data120)
+            regions120Display.text = "Region Data (180 min):\n$region120\n"
+        }
     }
 }
