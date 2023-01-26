@@ -25,7 +25,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 
 
-class StepCounter : Service(), SensorEventListener {
+class StepCounter : Service(){
 
     private val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 90
 
@@ -89,14 +89,19 @@ class StepCounter : Service(), SensorEventListener {
             }
 //        step_handler()
         }
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
+//        sensorManager.registerListener(mStepCounterListener);
+
         GlobalScope.launch(Dispatchers.IO) {
             step_handler()
         }
+
+        Log.d("SERVICE", "here")
 
         // Get updates from the accelerometer and magnetometer at a constant rate.
         // To make batch operations more efficient and reduce power consumption,
@@ -107,7 +112,7 @@ class StepCounter : Service(), SensorEventListener {
         // readings again.
         sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.also { accelerometer ->
             sensorManager.registerListener(
-                this,
+                mStepCounterListener,
                 accelerometer,
                 SensorManager.SENSOR_DELAY_NORMAL,
                 SensorManager.SENSOR_DELAY_UI
@@ -115,7 +120,7 @@ class StepCounter : Service(), SensorEventListener {
         }
         sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)?.also { magneticField ->
             sensorManager.registerListener(
-                this,
+                mStepCounterListener,
                 magneticField,
                 SensorManager.SENSOR_DELAY_NORMAL,
                 SensorManager.SENSOR_DELAY_UI
@@ -123,7 +128,7 @@ class StepCounter : Service(), SensorEventListener {
         }
         sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)?.also { accelerometer ->
             sensorManager.registerListener(
-                this,
+                mStepCounterListener,
                 accelerometer,
                 SensorManager.SENSOR_DELAY_NORMAL,
                 SensorManager.SENSOR_DELAY_UI
@@ -131,7 +136,7 @@ class StepCounter : Service(), SensorEventListener {
         }
         sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.also { pedometer ->
             sensorManager.registerListener(
-                this,
+                mStepCounterListener,
                 pedometer,
                 SensorManager.SENSOR_DELAY_NORMAL,
                 SensorManager.SENSOR_DELAY_UI
@@ -141,33 +146,28 @@ class StepCounter : Service(), SensorEventListener {
         return START_STICKY
     }
 
-
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Do something here if sensor accuracy changes.
-        // You must implement this callback in your code.
-    }
-
     override fun onDestroy() {
-        sensorManager.unregisterListener(this)
+        sensorManager.unregisterListener(mStepCounterListener)
         super.onDestroy()
     }
 
 
+
     // Get readings from accelerometer and magnetometer. To simplify calculations,
     // consider storing these readings as unit vectors.
-    override fun onSensorChanged(event: SensorEvent) {
-        if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-            System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
-        } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
-            System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
-        } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
-            System.arraycopy(event.values, 0, linearAccelerometerReading, 0, linearAccelerometerReading.size)
-        } else if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
-            step_count = event.values[0].toInt()
-            Log.d("STEPS", step_count.toString())
-        }
-//        step_handler()
-    }
+//    override fun onSensorChanged(event: SensorEvent) {
+//        if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+//            System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
+//        } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
+//            System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
+//        } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
+//            System.arraycopy(event.values, 0, linearAccelerometerReading, 0, linearAccelerometerReading.size)
+//        } else if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+//            step_count = event.values[0].toInt()
+//            Log.d("STEPS", step_count.toString())
+//        }
+////        step_handler()
+//    }
 
     // Compute the three orientation angles based on the most recent readings from
     // the device's accelerometer and magnetometer.
