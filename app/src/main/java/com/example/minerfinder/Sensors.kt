@@ -549,13 +549,13 @@ class Sensors : AppCompatActivity(), SensorEventListener {
 
         runOnUiThread {
             val regions30Display: TextView = findViewById<TextView>(R.id.region_data30)
-            regions30Display.text = "Region Data (30 min):\n$region30\n"
+            regions30Display.text = "Region Data (30 min):\n${String.format("%.2f",region30)}\n"
             val regions60Display: TextView = findViewById<TextView>(R.id.region_data60)
             regions60Display.text = "Region Data (60 min):\n$region60\n"
-            val regions90Display: TextView = findViewById<TextView>(R.id.region_data90)
-            regions90Display.text = "Region Data (180 min):\n$region90\n"
+//            val regions90Display: TextView = findViewById<TextView>(R.id.region_data90)
+//            regions90Display.text = "Region Data (90 min):\n$region90\n"
             val regions120Display: TextView = findViewById<TextView>(R.id.region_data120)
-            regions120Display.text = "Region Data (180 min):\n$region120\n"
+            regions120Display.text = "Region Data (120 min):\n$region120\n"
         }
     }
 }

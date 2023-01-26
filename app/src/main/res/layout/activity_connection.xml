@@ -6,14 +6,14 @@
     android:layout_height="match_parent"
     tools:context=".Connection">
 
-    <TextView
-        android:id="@+id/error_log"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Error Log: none"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+<!--    <TextView-->
+<!--        android:id="@+id/error_log"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Error Log: none"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toTopOf="parent" />-->
 
     <TextView
         android:id="@+id/connection_mode"
@@ -44,32 +44,32 @@
         app:layout_constraintTop_toBottomOf="@id/connection_report" />
  />
 
-    <Button
-        android:id="@+id/advertise_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Advertise"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="410dp" />
+<!--    <Button-->
+<!--        android:id="@+id/advertise_button"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Advertise"-->
+<!--        app:layout_constraintBottom_toBottomOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        tools:layout_editor_absoluteY="410dp" />-->
 
-    <Button
-        android:id="@+id/discover_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Discover"
-        app:layout_constraintBottom_toTopOf="@id/advertise_button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="410dp" />
+<!--    <Button-->
+<!--        android:id="@+id/discover_button"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Discover"-->
+<!--        app:layout_constraintBottom_toTopOf="@id/advertise_button"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        tools:layout_editor_absoluteY="410dp" />-->
 
     <Button
         android:id="@+id/off_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Off"
-        app:layout_constraintBottom_toTopOf="@id/discover_button"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:layout_editor_absoluteY="410dp" />
@@ -78,20 +78,20 @@
         android:id="@+id/both_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Both"
+        android:text="On"
         app:layout_constraintBottom_toTopOf="@id/off_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:layout_editor_absoluteY="410dp" />
 
-    <Button
-        android:id="@+id/disconnect_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Disconnect"
-        app:layout_constraintBottom_toTopOf="@id/both_button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="410dp" />
+<!--    <Button-->
+<!--        android:id="@+id/disconnect_button"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Disconnect"-->
+<!--        app:layout_constraintBottom_toTopOf="@id/both_button"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        tools:layout_editor_absoluteY="410dp" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

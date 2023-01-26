@@ -1,6 +1,7 @@
 package com.example.minerfinder
 
 import android.Manifest
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -8,12 +9,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.text.method.ScrollingMovementMethod
+import android.os.IBinder
 import android.util.Log
-import android.view.View
-import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.minerfinder.databinding.ActivitySensorsBinding
@@ -27,56 +24,10 @@ import java.sql.Timestamp
 import kotlin.math.abs
 import kotlin.math.pow
 
-class MainActivity : AppCompatActivity(), SensorEventListener {
+
+class StepCounter : Service(), SensorEventListener {
+
     private val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 90
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        val homeText: TextView = findViewById<TextView>(R.id.home_text)
-        homeText.text = "Welcome to Miner Finer!\nMiner #${Helper().getLocalUserName(applicationContext)}"
-
-        // FROM SENSROS
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-
-        checkPermissions()
-
-        GlobalScope.launch(Dispatchers.IO) {
-            step_handler()
-        }
-    }
-
-    fun connectionView(view: View?) {
-        val intent = Intent(this, Connection::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
-    }
-
-    fun sensorsView(view: View?) {
-        val intent = Intent(this, DataDisplay::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
-    }
-
-//    fun accountView(view: View?) {
-//        val intent = Intent(this, Account::class.java)
-//        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//        startActivity(intent)
-//    }
-
-    private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
-            != PackageManager.PERMISSION_GRANTED) {
-            // Permission is not granted
-            ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
-                MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION)
-        }
-    }
-
-    // SENSORS
-
-//    private val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 90
 
     private lateinit var viewBinding: ActivitySensorsBinding
 
@@ -117,39 +68,35 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var step_x = 0.0
     private var step_y = 0.0
 
-//    public override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        setContentView(R.layout.activity_sensors)
-//
-//        viewBinding = ActivitySensorsBinding.inflate(layoutInflater)
-//        setContentView(viewBinding.root)
-//
-//        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-//
-//        checkPermissions()
-//
-//        GlobalScope.launch(Dispatchers.IO) {
-//            step_handler()
-//        }
-//    }
+    private val mStepCounterListener: SensorEventListener = object : SensorEventListener {
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+            // Do something here if sensor accuracy changes.
+            // You must implement this callback in your code.
+        }
 
-//    private fun checkPermissions() {
-//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
-//            != PackageManager.PERMISSION_GRANTED) {
-//            // Permission is not granted
-//            ActivityCompat.requestPermissions(this,
-//                arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
-//                MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION)
-//        }
-//    }
-
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Do something here if sensor accuracy changes.
-        // You must implement this callback in your code.
+        // Get readings from accelerometer and magnetometer. To simplify calculations,
+        // consider storing these readings as unit vectors.
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
+            } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
+                System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
+            } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
+                System.arraycopy(event.values, 0, linearAccelerometerReading, 0, linearAccelerometerReading.size)
+            } else if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+                step_count = event.values[0].toInt()
+                Log.d("STEPS", step_count.toString())
+            }
+//        step_handler()
+        }
     }
 
-    override fun onResume() {
-        super.onResume()
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        GlobalScope.launch(Dispatchers.IO) {
+            step_handler()
+        }
 
         // Get updates from the accelerometer and magnetometer at a constant rate.
         // To make batch operations more efficient and reduce power consumption,
@@ -190,15 +137,21 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 SensorManager.SENSOR_DELAY_UI
             )
         }
-//        step_handler()
+
+        return START_STICKY
     }
 
-    override fun onPause() {
-        super.onPause()
 
-        // Don't receive any more updates from either sensor.
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+        // Do something here if sensor accuracy changes.
+        // You must implement this callback in your code.
+    }
+
+    override fun onDestroy() {
         sensorManager.unregisterListener(this)
+        super.onDestroy()
     }
+
 
     // Get readings from accelerometer and magnetometer. To simplify calculations,
     // consider storing these readings as unit vectors.
@@ -301,7 +254,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         val jsonString = fileInputStream.bufferedReader().use { it.readText() }
         val jsonObject = JSONObject(jsonString)
         Log.d("json read", jsonObject.toString())
-//        regionHandler(jsonObject)
     }
 
     private fun saveJson(jsonString: String) {
@@ -340,11 +292,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         val jsonOutString = jsonObject.toString()
         fileOutputStream.write(jsonOutString.toByteArray())
         fileOutputStream.close()
-
-
-//        runOnUiThread {
-//            displayJson(jsonOutString)
-//        }
 
         updateTimestampFile(userNumber.toInt())
         Log.d("json", file.toString())
@@ -385,12 +332,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     }
 
-//    private fun displayJson(m: String) {
-//        val minerDisplay: TextView = findViewById<TextView>(R.id.miner_data)
-//        minerDisplay.movementMethod = ScrollingMovementMethod()
-//        minerDisplay.text = "Miner Data:\n$m"
-//    }
-
     fun get_coord(magnitude: Double, degrees: Double): List<Double> {
         val angle = Math.toRadians(degrees)
         val x = magnitude * Math.cos(angle)
@@ -409,78 +350,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         return listOf(mag, angle)
     }
 
-//    private fun ratios(jsonObject: JSONObject, timespan: Int = 10800): Map<String, Float> {
-//        val pillarCounts = mutableMapOf<String, Int>()
-//        var isFirst = true
-//        var lastPiller = "none"
-//        var timeDiff = 0
-//        for (key in jsonObject.keys()) {
-//            val values = jsonObject.get(key).toString().split(",")
-//            val pillar = values[2]
-//            val time = Timestamp.valueOf(key)
-//
-//            // check if were within timespan
-//            if ((System.currentTimeMillis() - time.time) / 1000 > timespan) {
-//                continue
-//            }
-//
-//            // only add if changing pillars
-//            if (lastPiller == pillar) {
-//                continue
-//            }
-//            lastPiller = pillar
-//
-//            if (pillarCounts.containsKey(pillar)) {
-//                pillarCounts[pillar] = pillarCounts[pillar]!! + 1
-//            } else {
-//                pillarCounts[pillar] = 1
-//            }
-//        }
-//
-//        Log.d("ratios", pillarCounts.toString())
-//
-//        val total = pillarCounts.values.sum()
-//        val letterRatios = pillarCounts.mapValues { (_, count) -> count.toFloat() / total }
-//        Log.d("ratios", letterRatios.toString())
-//
-//        return letterRatios
-//    }
-//
-//    fun regionRatios(pillarRatios: Map<String, Float>): MutableMap<String, Float> {
-//        val regions = mutableMapOf("ABCD" to 0f, "EFGH" to 0f, "IJKL" to 0f, "MNOP" to 0f)
-//
-//        for ((key, value) in pillarRatios) {
-//            for ((rKey, rValue) in regions) {
-//                if (rKey.contains(key)) {
-//                    regions[rKey] = regions[rKey]!! + value
-//                }
-//            }
-//        }
-//
-//
-//        Log.d("regionsratios", regions.toString())
-//        return regions
-//    }
-//
-//    fun regionHandler(jsonObject: JSONObject) {
-//        val pillar30 = ratios(jsonObject, 30*60)
-//        val pillar60 = ratios(jsonObject, 60*60)
-//        val pillar90 = ratios(jsonObject, 90*60)
-//        val pillar120 = ratios(jsonObject, 120*60)
-//        val region30 = regionRatios(pillar30)
-//        val region60 = regionRatios(pillar60)
-//        val region90 = regionRatios(pillar90)
-//        val region120 = regionRatios(pillar120)
-//
-//        runOnUiThread {
-//            val regions30Display: TextView = findViewById<TextView>(R.id.region_data30)
-//            regions30Display.text = "Region Data (30 min):\n$region30\n"
-//            val regions60Display: TextView = findViewById<TextView>(R.id.region_data60)
-//            regions60Display.text = "Region Data (60 min):\n$region60\n"
-//            val regions90Display: TextView = findViewById<TextView>(R.id.region_data90)
-//            regions90Display.text = "Region Data (90 min):\n$region90\n"
-//            val regions120Display: TextView = findViewById<TextView>(R.id.region_data120)
-//            regions120Display.text = "Region Data (120 min):\n$region120\n"
-//        }
-//    }
+    override fun onBind(intent: Intent): IBinder {
+        TODO("Return the communication channel to the service.")
+    }
 }

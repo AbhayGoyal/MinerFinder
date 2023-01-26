@@ -59,18 +59,18 @@ class Connection : AppCompatActivity() {
         viewBinding = ActivityConnectionBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
-        viewBinding.discoverButton.setOnClickListener {
-            startDiscovery()
-        }
-        viewBinding.advertiseButton.setOnClickListener {
-            startAdvertising()
-        }
+//        viewBinding.discoverButton.setOnClickListener {
+//            startDiscovery()
+//        }
+//        viewBinding.advertiseButton.setOnClickListener {
+//            startAdvertising()
+//        }
         viewBinding.offButton.setOnClickListener {
             modeOff()
         }
-        viewBinding.disconnectButton.setOnClickListener {
-            disconnectEndpoint()
-        }
+//        viewBinding.disconnectButton.setOnClickListener {
+//            disconnectEndpoint()
+//        }
         viewBinding.bothButton.setOnClickListener {
             startAdvertising(false)
             startDiscovery(false)
@@ -111,7 +111,7 @@ class Connection : AppCompatActivity() {
     private fun modeDisplay() {
         var mode: String = "OFF"
         if (isAdvertising && isDiscovering) {
-            mode = "BOTH"
+            mode = "ON"
         }
         else if (isAdvertising) {
             mode = "ADVERTISING"
@@ -124,8 +124,8 @@ class Connection : AppCompatActivity() {
     }
 
     private fun errorDisplay(e: String) {
-        val errorLog: TextView = findViewById<TextView>(R.id.error_log)
-        errorLog.text = "Error Log: $e"
+//        val errorLog: TextView = findViewById<TextView>(R.id.error_log)
+//        errorLog.text = "Error Log: $e"
     }
 
     private fun connectionDisplay(m: String) {
