@@ -1,13 +1,27 @@
 package com.example.minerfinder
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.minerfinder.databinding.ActivitySensorsBinding
+import com.jjoe64.graphview.GraphView
+import com.jjoe64.graphview.series.DataPoint
+import com.jjoe64.graphview.series.LineGraphSeries
 import org.json.JSONObject
+import java.io.File
 import java.sql.Timestamp
+//import javax.swing.JFrame
+//
+//import com.mxgraph.layout.mxCircleLayout;
+//import com.mxgraph.swing.mxGraphComponent;
+//import com.mxgraph.view.mxGraph;
+//
+//import javax.swing.*;
+
 
 class DataDisplay : AppCompatActivity() {
     private lateinit var viewBinding: ActivitySensorsBinding
@@ -20,24 +34,104 @@ class DataDisplay : AppCompatActivity() {
         setContentView(viewBinding.root)
 
         val userNumber = Helper().getLocalUserName(applicationContext).toInt()
-        readJson("$userNumber.json")
+
+//        displayGraph()
+
+        val handlerThread = HandlerThread("MyHandlerThread")
+        handlerThread.start()
+        val handler = Handler(handlerThread.looper)
+        val runnable = object : Runnable {
+            override fun run() {
+                // your code here
+                readJson("$userNumber.json")
+
+                handler.postDelayed(this, 10 * 1000) // 10 seconds
+            }
+        }
+        handler.post(runnable)
     }
 
     private fun readJson(fileName: String) {
         val fileName = "${Helper().getLocalUserName(applicationContext)}.json"
+        if (!File("$filesDir/$fileName").exists()) {
+            Log.d("filetree", "file does not exitt")
+            return
+        }
         val fileInputStream = openFileInput(fileName)
         val jsonString = fileInputStream.bufferedReader().use { it.readText() }
         val jsonObject = JSONObject(jsonString)
         Log.d("json read", jsonObject.toString())
-//        val pillarRatios30 = ratios(jsonObject, 30*60)
-//        val pillarRatios60 = ratios(jsonObject, 60*60)
-//        val pillarRatios180 = ratios(jsonObject, 180*60)
-//        regionRatios(pillarRatios30, 30*60)
-//        regionRatios(pillarRatios60, 60*60)
-//        regionRatios(pillarRatios180, 180*60)
+
         regionHandler(jsonObject)
-        displayJson(jsonString)
+        runOnUiThread {
+            displayJson(jsonString)
+        }
+
+//        displayGraph(jsonObject)
     }
+
+
+//    private fun displayGraph(jsonObject: JSONObject) {
+//        val graph = findViewById<GraphView>(R.id.graph)
+////        graph.viewport.isScalable = true
+//
+//
+//
+////        val graph = GraphView(this)
+//        graph.viewport.isScalable = true
+//        graph.viewport.isScrollable = true
+////        graph.viewport.setMinX(0.0)
+//        graph.viewport.setMinY(0.0)
+////        graph.viewport.setMaxX(17.0)
+//        graph.viewport.setMaxY(17.0)
+//        graph.viewport.isXAxisBoundsManual = true
+//        graph.viewport.isYAxisBoundsManual = true
+//        graph.viewport.isScalable = true
+//        graph.viewport.isScrollable = true
+////        graph.viewport.setMinScale(1.0)
+////        graph.viewport.setMaxScale(3.0)
+//
+//
+//
+//        val series = LineGraphSeries<DataPoint>()
+//
+//        var minx = Timestamp(System.currentTimeMillis()).time.toDouble()
+//        var maxx = Timestamp(0).time.toDouble()
+//
+//        var last_pillar = "A"
+//        val current_time = System.currentTimeMillis()
+//        var lastX = -2.0
+//
+//        var firstKey = jsonObject.keys().next()
+//        var firstTime = Timestamp.valueOf(firstKey).time.toDouble()
+//
+//        for (key in jsonObject.keys()) {
+//
+//            val values = jsonObject.get(key).toString().split(",")
+//            val pillar = values[2]
+//            val time = Timestamp.valueOf(key).time.toDouble()
+//            val x = (time - firstTime) / (60 * 1000)
+////            val xPrime = max(x)
+//            Log.d("xvalues", x.toString() + (x+0.001).toString())
+//            series.appendData(DataPoint(x, (last_pillar[0].code - 'A'.code + 1).toDouble()), true, 100)
+//            series.appendData(DataPoint(x, (pillar[0].code - 'A'.code + 1).toDouble()), true, 100)
+//            last_pillar = pillar
+//            if (x > maxx)
+//                maxx = x
+//            if (x < minx)
+//                minx = x
+//        }
+//
+//        graph.viewport.setMinX(minx)
+//        graph.viewport.setMaxX(maxx)
+//
+//
+////        for (i in 0..10) {
+////            series.appendData(DataPoint(i.toDouble(), Math.sin(i.toDouble())), true, 100)
+////        }
+//
+//        graph.addSeries(series)
+//    }
 
     private fun displayJson(m: String) {
         val minerDisplay: TextView = findViewById<TextView>(R.id.miner_data)

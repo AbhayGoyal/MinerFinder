@@ -41,6 +41,10 @@ class Connection : AppCompatActivity() {
 
     private val found_eid = mutableListOf<String>()
 
+    val links = mutableListOf<List<String>>() // endpointid, usernumber
+    val lost = mutableListOf<String>()
+    val offline = mutableListOf<String>()
+
     companion object {
         private const val LOCATION_PERMISSION_CODE = 100
     }
@@ -66,10 +70,15 @@ class Connection : AppCompatActivity() {
 //            startAdvertising()
 //        }
         viewBinding.offButton.setOnClickListener {
+            for (i in links.indices) {
+                disconnectEndpoint(links[i][0])
+            }
             modeOff()
         }
 //        viewBinding.disconnectButton.setOnClickListener {
-//            disconnectEndpoint()
+//            for (i in links.indices) {
+//                disconnectEndpoint(links[i][0])
+//            }
 //        }
         viewBinding.bothButton.setOnClickListener {
             startAdvertising(false)
@@ -125,6 +134,7 @@ class Connection : AppCompatActivity() {
 
     private fun errorDisplay(e: String) {
 //        val errorLog: TextView = findViewById<TextView>(R.id.error_log)
+//        Log.d("errorlog", e)
 //        errorLog.text = "Error Log: $e"
     }
 
@@ -136,6 +146,21 @@ class Connection : AppCompatActivity() {
     private fun messageDisplay(m: String) {
         val dataDisplay: TextView = findViewById<TextView>(R.id.data_received)
         dataDisplay.text = "Message: $m"
+    }
+
+    private fun linksDisplay() {
+        runOnUiThread {
+            val linksDisplay: TextView = findViewById<TextView>(R.id.links)
+            val linksNumbers = links.map { it[1] }
+            linksDisplay.text = "Links/lost: $linksNumbers / $lost"
+        }
+    }
+
+    private fun offlineDisplay() {
+        runOnUiThread {
+            val offlineDisplay: TextView = findViewById<TextView>(R.id.offline)
+            offlineDisplay.text = "Universal offline: $offline"
+        }
     }
 
     private fun startAdvertising(singleMode: Boolean = true) {
@@ -198,13 +223,29 @@ class Connection : AppCompatActivity() {
 
     private fun disconnectEndpoint(endpointId: String = eid) {
         Nearby.getConnectionsClient(context).disconnectFromEndpoint(endpointId)
-        connectionDisplay("Disconnected from $endpointId")
+        val lostNumber = links.find { it[0] == endpointId }
+
+        connectionDisplay("Disconnected from $lostNumber[0]")
+
+        if (lostNumber != null) {
+            val alreadyExists = lost.contains(lostNumber[0])
+            if(!alreadyExists) {
+                lost.add(lostNumber[1])
+//                offline.add(lostNumber[1])
+                links.remove(lostNumber)
+            }
+            sendLostMessage(lostNumber[1].toString())
+        }
+        linksDisplay()
+//        offlineDisplay()
+
     }
 
     private val endpointDiscoveryCallback: EndpointDiscoveryCallback =
         object : EndpointDiscoveryCallback() {
             override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
                 // An endpoint was found. We request a connection to it.
+//                stopDiscovery()
                 Nearby.getConnectionsClient(context)
                     .requestConnection(userNumber, endpointId, connectionLifecycleCallback)
                     .addOnSuccessListener { unused: Void? ->
@@ -213,9 +254,10 @@ class Connection : AppCompatActivity() {
                         Log.d("eidlist", found_eid.toString())
                     }
                     .addOnFailureListener { e: java.lang.Exception? ->
-                        connectionDisplay("Found endpoint. Failed to request connection.")
+//                        connectionDisplay("Found endpoint. Failed to request connection.") // rm for display
                         errorDisplay(e.toString())
                     }
+//                startDiscovery(false)
             }
 
             override fun onEndpointLost(endpointId: String) {
@@ -264,6 +306,18 @@ class Connection : AppCompatActivity() {
                 // sent or received.
                 Log.d("status", "disconnected")
                 connectionDisplay("Disconnected from endpoint.")
+                val lostNumber = links.find { it[0] == endpointId }
+                if (lostNumber != null) {
+                    val alreadyExists = lost.contains(lostNumber[0])
+                    if(!alreadyExists) {
+                        lost.add(lostNumber[1])
+                        offline.add(lostNumber[1])
+                        links.remove(lostNumber)
+                    }
+                    sendLostMessage(lostNumber[1].toString())
+                }
+                linksDisplay()
+                offlineDisplay()
             }
         }
 
@@ -328,11 +382,43 @@ class Connection : AppCompatActivity() {
 
     fun evalMessage(message: String, endpointId: String) {
         Log.d("evalmes", message)
-        if (message.last() == '0') {
+
+        if (message.contains("lost connection to")) {
+            messageDisplay(message)
+            offline.add(message.last().toString())
+            offlineDisplay()
+        }
+        else if (message.contains("regained connection to")) {
+            messageDisplay(message)
+            offline.remove(message.last().toString())
+            offlineDisplay()
+        }
+        else if (message.last() == '0') {
             GlobalScope.launch(Dispatchers.IO) {
-                evalTimestamps(message.dropLast(1), endpointId)
+                val newMessage = message.dropLast(1).split(",")
+                val otherUser = newMessage.last()
+
+                if (lost.contains(otherUser)) {
+                    lost.remove(otherUser)
+                }
+
+                val userNumber = links.find { it[1] == otherUser }
+                if (userNumber == null) {
+                    links.add(listOf(endpointId, otherUser))
+                    linksDisplay()
+                }
+                if(offline.contains(otherUser)) {
+                    offline.remove(otherUser)
+                    sendOnline(otherUser)
+                }
+
+
+                Log.d("stampbug", newMessage.dropLast(1).toString())
+                evalTimestamps(newMessage.dropLast(1).joinToString(), endpointId)
+                runOnUiThread {
+                    connectionDisplay("Received timestamp.csv from User #$otherUser")
+                }
             }
-            messageDisplay("Received timestamp.csv")
         }
         else if (message.last() == '1') {
             readMiner(message.dropLast(1))
@@ -342,9 +428,16 @@ class Connection : AppCompatActivity() {
     fun sendTimestamps(endpointId: String) {
         val fileName = "timestamp.csv"
         val file = File(filesDir, fileName)
-        val contents = file.bufferedReader().readText() + "0"
+        var contents = ""
+        if (file.exists()) {
+            contents = file.bufferedReader().readText() + ",$userNumber" + "0"
+        }
+        else {
+            contents = "$userNumber" + "0"
+        }
         val bytesPayload = Payload.fromBytes(serialize(contents))
         Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+
     }
 
     suspend fun evalTimestamps(partnerStamps: String, endpointId: String) {
@@ -371,20 +464,29 @@ class Connection : AppCompatActivity() {
     fun sendMiner(endpointId: String, minerNumber: Int, timestamp: Timestamp) {
         val fileName = "$minerNumber.json"
         val file = File(filesDir, fileName)
-        if (file.exists()) {
-            Log.d("csv%", minerNumber.toString())
-            val contents = file.readText() + ",$minerNumber,$timestamp" + "1"
-            val bytesPayload = Payload.fromBytes(serialize(contents))
-            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+        if (!file.exists()) {
+            if (minerNumber.toString() == userNumber) {
+                updateTimestampFile(minerNumber)
+                return // maybe should create file
+            }
+            else {
+                return
+            }
         }
+        Log.d("csv%", minerNumber.toString())
+        val contents = file.readText() + ",$minerNumber,$timestamp" + "1"
+        val bytesPayload = Payload.fromBytes(serialize(contents))
+        Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+
     }
 
     fun readMiner(message: String) {
         val csv = message.split(",").toMutableList()
+        Log.d("csvbug", csv.toString())
         val minerNumber: Int = csv[csv.size.toInt()-2].toInt()
         val timestamp: Timestamp = Timestamp.valueOf(csv[csv.size.toInt()-1])
-//        csv.removeAt(csv.size.toInt()-1)
-//        csv.removeAt(csv.size.toInt()-1)
+        csv.removeAt(csv.size.toInt()-1)
+        csv.removeAt(csv.size.toInt()-1)
         messageDisplay("Received $minerNumber.json")
         Log.d("csv", message)
         Log.d("csv#", minerNumber.toString())
@@ -396,7 +498,7 @@ class Connection : AppCompatActivity() {
         // update miner data file
         val fileName = "$minerNumber.json"
         val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
-        fileOutputStream.write(csv[0].toByteArray())
+        fileOutputStream.write(csv.joinToString().toByteArray())
         fileOutputStream.close()
 
         // update timestamp file
@@ -434,6 +536,26 @@ class Connection : AppCompatActivity() {
         val fileOutputStream = openFileOutput(fileName, Context.MODE_PRIVATE)
         fileOutputStream.write(timestampString.toByteArray())
         fileOutputStream.close()
+
+    }
+
+    fun sendLostMessage(number: String) {
+        val linksNumbers = links.map { it[0] }
+        for (endpointId in linksNumbers) {
+            val contents = "lost connection to $number"
+            val bytesPayload = Payload.fromBytes(serialize(contents))
+            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+        }
+
+    }
+
+    fun sendOnline(number: String) {
+        val linksNumbers = links.map { it[0] }
+        for (endpointId in linksNumbers) {
+            val contents = "regained connection to $number"
+            val bytesPayload = Payload.fromBytes(serialize(contents))
+            Nearby.getConnectionsClient(context).sendPayload(endpointId, bytesPayload)
+        }
 
     }
 }

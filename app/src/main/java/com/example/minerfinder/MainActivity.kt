@@ -4,15 +4,19 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Environment
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 90
 //    val serviceIntent = Intent(this, StepCounter::class.java)
+    private var sensorsInitialized: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +28,23 @@ class MainActivity : AppCompatActivity() {
         // FROM SENSROS
 
         checkPermissions()
+
+        val files = filesDir.listFiles()
+
+        for (file in files) {
+            Log.d("filetree", file.toString())
+            if (file.toString() == "/data/user/0/com.example.minerfinder/files/1.json" ||
+                file.toString() == "/data/user/0/com.example.minerfinder/files/2.json" ||
+                file.toString() == "/data/user/0/com.example.minerfinder/files/3.json" ||
+                file.toString() == "/data/user/0/com.example.minerfinder/files/4.json" ||
+                file.toString() == "/data/user/0/com.example.minerfinder/files/5.json" ||
+                file.toString() == "/data/user/0/com.example.minerfinder/files/timestamp.csv") {
+                Log.d("filetree", file.readText())
+
+                file.delete()
+
+            }
+        }
 
         startService(Intent(this, StepCounter::class.java))
 
@@ -53,11 +74,11 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-//    fun accountView(view: View?) {
-//        val intent = Intent(this, Account::class.java)
-//        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//        startActivity(intent)
-//    }
+    fun accountView(view: View?) {
+        val intent = Intent(this, Account::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+    }
 
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)

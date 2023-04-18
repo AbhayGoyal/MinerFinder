@@ -6,6 +6,11 @@
     android:layout_height="match_parent"
     tools:context=".Sensors">
 
+<!--    <com.jjoe64.graphview.GraphView-->
+<!--        android:id="@+id/graph"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="match_parent"/>-->
+
     <TextView
         android:id="@+id/region_data30"
         android:layout_width="wrap_content"

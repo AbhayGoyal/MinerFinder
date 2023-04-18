@@ -147,7 +147,7 @@ class StepCounter : Service(){
     }
 
     override fun onDestroy() {
-        sensorManager.unregisterListener(mStepCounterListener)
+//        sensorManager.unregisterListener(mStepCounterListener)
         super.onDestroy()
     }
 
@@ -269,6 +269,7 @@ class StepCounter : Service(){
             fileInputStream.close()
         }
         else {
+            file.createNewFile()
             jsonObject = JSONObject()
         }
 
