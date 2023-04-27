@@ -222,7 +222,7 @@ class StepCounter : Service(){
             val startTime = System.currentTimeMillis()
             for (i in 0 until INTERVAL) {
                 delay(1000)
-                Log.d("read 99", step_count.toString())
+//                Log.d("read 99", step_count.toString())
                 currentSteps = step_count - lastSteps
                 lastSteps = step_count
                 distance = currentSteps * avg_step_size

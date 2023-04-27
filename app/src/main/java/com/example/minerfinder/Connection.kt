@@ -4,6 +4,7 @@ package com.example.minerfinder
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -21,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.*
+import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 
 
@@ -45,6 +47,11 @@ class Connection : AppCompatActivity() {
     val lost = mutableListOf<String>()
     val offline = mutableListOf<String>()
 
+    // send photo
+    private val READ_REQUEST_CODE = 42
+    private val ENDPOINT_ID_EXTRA = "com.foo.myapp.EndpointId"
+    val global = applicationContext as Global
+
     companion object {
         private const val LOCATION_PERMISSION_CODE = 100
     }
@@ -56,9 +63,6 @@ class Connection : AppCompatActivity() {
         setContentView(R.layout.activity_connection)
 
         checkPermission(Manifest.permission.ACCESS_FINE_LOCATION, LOCATION_PERMISSION_CODE)
-
-        viewBinding = ActivityConnectionBinding.inflate(layoutInflater)
-        setContentView(viewBinding.root)
 
         viewBinding = ActivityConnectionBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
@@ -85,7 +89,79 @@ class Connection : AppCompatActivity() {
             startDiscovery(false)
             modeDisplay()
         }
+
+        viewBinding.sendPhotoButton.setOnClickListener {
+            if (global.found_eid.isNotEmpty()) {
+                val firstEid = global.found_eid[0]
+                // sendPhoto
+                Log.d("haseid", firstEid)
+                sendPhoto(firstEid)
+            }
+            Log.d("haseid", "no :(")
+        }
     }
+
+      ////////////////
+     // SEND PHOTO //
+    ////////////////
+    private fun sendPhoto(endpointId: String) {
+        showImageChooser(endpointId)
+    }
+
+
+    private fun showImageChooser(endpointId: String) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+        intent.addCategory(Intent.CATEGORY_OPENABLE)
+        intent.type = "image/*"
+        intent.putExtra(ENDPOINT_ID_EXTRA, endpointId)
+        startActivityForResult(intent, READ_REQUEST_CODE)
+        Log.d(TAG, "end img")
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
+        super.onActivityResult(requestCode, resultCode, resultData)
+        if (requestCode == READ_REQUEST_CODE && resultCode == RESULT_OK && resultData != null) {
+//            val endpointId = resultData.getStringExtra(ENDPOINT_ID_EXTRA)
+            val endpointId = this.eid
+            Log.d("EID", endpointId.toString())
+
+            // The URI of the file selected by the user.
+            val uri = resultData.data
+            val filePayload: Payload
+            filePayload = try {
+                // Open the ParcelFileDescriptor for this URI with read access.
+                val pfd = contentResolver.openFileDescriptor(uri!!, "r")
+                Payload.fromFile(pfd!!)
+            } catch (e: FileNotFoundException) {
+                Log.e("MyApp", "File not found", e)
+                return
+            }
+
+            // Construct a simple message mapping the ID of the file payload to the desired filename.
+            val filenameMessage = filePayload.id.toString() + ":" + uri.lastPathSegment
+
+            Log.d("FILENAME", filenameMessage)
+
+            // Send the filename message as a bytes payload.
+            val filenameBytesPayload =
+                Payload.fromBytes(filenameMessage.toByteArray(StandardCharsets.UTF_8))
+            Nearby.getConnectionsClient(context).sendPayload(endpointId!!, filenameBytesPayload)
+
+            // Finally, send the file payload.
+            if(endpointId != null) {
+                Log.d(TAG, "in result")
+
+                Nearby.getConnectionsClient(context).sendPayload(endpointId, filePayload).addOnSuccessListener {
+                    Log.d(TAG, "successful send?")
+                }
+            }
+        }
+    }
+
+      //////end///////
+     // SEND PHOTO //
+    ////////////////
+
 
 
     // For testing a constant connection
@@ -250,8 +326,8 @@ class Connection : AppCompatActivity() {
                     .requestConnection(userNumber, endpointId, connectionLifecycleCallback)
                     .addOnSuccessListener { unused: Void? ->
                         connectionDisplay("Found endpoint. Requesting connection.")
-                        found_eid.add(endpointId)
-                        Log.d("eidlist", found_eid.toString())
+                        global.found_eid.add(endpointId)
+                        Log.d("eidlist", global.found_eid.toString())
                     }
                     .addOnFailureListener { e: java.lang.Exception? ->
 //                        connectionDisplay("Found endpoint. Failed to request connection.") // rm for display

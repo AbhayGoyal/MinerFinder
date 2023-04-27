@@ -4,8 +4,11 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_account.xml" value="0.1796875" />
+        <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_camera.xml" value="0.1" />
         <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_connection.xml" value="0.1" />
         <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_main.xml" value="0.165625" />
+        <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_photo_connection.xml" value="0.12708333333333333" />
+        <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_photos.xml" value="0.1" />
         <entry key="..\:/Users/jacob/Code/MinerFinder/app/src/main/res/layout/activity_sensors.xml" value="0.1640625" />
       </map>
     </option>

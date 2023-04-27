@@ -18,6 +18,8 @@ class MainActivity : AppCompatActivity() {
 //    val serviceIntent = Intent(this, StepCounter::class.java)
     private var sensorsInitialized: Boolean = false
 
+    public val found_eid = mutableListOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -76,6 +78,24 @@ class MainActivity : AppCompatActivity() {
 
     fun accountView(view: View?) {
         val intent = Intent(this, Account::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+    }
+
+    fun cameraView(view: View?) {
+        val intent = Intent(this, Camera::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+    }
+
+    fun photosView(view: View?) {
+        val intent = Intent(this, Photos::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+    }
+
+    fun sendPhotoView(view: View?) {
+        val intent = Intent(this, PhotoConnection::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
         startActivity(intent)
     }

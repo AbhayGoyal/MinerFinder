@@ -43,4 +43,31 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/sensor_button" />
 
+    <Button
+        android:id="@+id/photos_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="photosView"
+        android:text="Photos"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/account_button" />
+
+    <Button
+        android:id="@+id/send_photo_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="sendPhotoView"
+        android:text="Send Photo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/photos_button" />
+
+    <Button
+        android:id="@+id/camera_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="cameraView"
+        android:text="Camera"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/send_photo_button" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
