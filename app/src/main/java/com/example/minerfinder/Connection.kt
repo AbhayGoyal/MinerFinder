@@ -47,7 +47,7 @@ class Connection : AppCompatActivity() {
     val lost = mutableListOf<String>()
     val offline = mutableListOf<String>()
 
-    // send photo
+    // send photo vars
     private val READ_REQUEST_CODE = 42
     private val ENDPOINT_ID_EXTRA = "com.foo.myapp.EndpointId"
     val global = applicationContext as Global
@@ -67,23 +67,13 @@ class Connection : AppCompatActivity() {
         viewBinding = ActivityConnectionBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
-//        viewBinding.discoverButton.setOnClickListener {
-//            startDiscovery()
-//        }
-//        viewBinding.advertiseButton.setOnClickListener {
-//            startAdvertising()
-//        }
         viewBinding.offButton.setOnClickListener {
             for (i in links.indices) {
                 disconnectEndpoint(links[i][0])
             }
             modeOff()
         }
-//        viewBinding.disconnectButton.setOnClickListener {
-//            for (i in links.indices) {
-//                disconnectEndpoint(links[i][0])
-//            }
-//        }
+
         viewBinding.bothButton.setOnClickListener {
             startAdvertising(false)
             startDiscovery(false)
@@ -163,7 +153,6 @@ class Connection : AppCompatActivity() {
     ////////////////
 
 
-
     // For testing a constant connection
     private suspend fun constantSend(endpointId: String) {
         var flag = true
@@ -188,10 +177,6 @@ class Connection : AppCompatActivity() {
             Log.d(TAG, "Permissions not denied")
         }
     }
-
-//    private fun getLocalUserName(): String {
-//        return "1"
-//    }
 
     private fun modeDisplay() {
         var mode: String = "OFF"
@@ -566,10 +551,6 @@ class Connection : AppCompatActivity() {
         messageDisplay("Received $minerNumber.json")
         Log.d("csv", message)
         Log.d("csv#", minerNumber.toString())
-
-//        filesDir.walk().forEach {
-//            Log.d("dir", it.toString())
-//        }
 
         // update miner data file
         val fileName = "$minerNumber.json"

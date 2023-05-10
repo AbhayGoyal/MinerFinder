@@ -1,18 +1,14 @@
 package com.example.minerfinder
 
-import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.example.minerfinder.databinding.ActivitySensorsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -23,7 +19,6 @@ import java.io.File
 import java.sql.Timestamp
 import kotlin.math.abs
 import kotlin.math.pow
-
 
 class StepCounter : Service(){
 
@@ -39,34 +34,9 @@ class StepCounter : Service(){
     private val rotationMatrix = FloatArray(9)
     private val orientationAngles = FloatArray(3)
 
-    private var xTot = 0.0
-    private var yTot = 0.0
-    private var startTime = Timestamp(0)
-    private var curTime = Timestamp(0)
-    private var timeDiff = 0.0
-    private var hyp = 0.0
-    private var v0 = 0.0
-    private var angle = 0.0
-
-    private var v0x = 0.0
-    private var v0y = 0.0
-    private var count = 0
-
     private var step_count = 0
-    private var accel_iter = 0
-    private var init_x = 0f
-    private var init_y = 0f
-    private var init_z = 0f
 
-    // time, angle, steps
-    private var step_cur_time = Timestamp(0)
-    private var step_start_time = Timestamp(0)
-    private var step_mid_time = Timestamp(0)
-    val step_hist = MutableList(0) { listOf<Any>() }
-    private var prev_steps = 0
     private val avg_step_size = 0.76 // meters
-    private var step_x = 0.0
-    private var step_y = 0.0
 
     private val mStepCounterListener: SensorEventListener = object : SensorEventListener {
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
@@ -94,8 +64,6 @@ class StepCounter : Service(){
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-
-//        sensorManager.registerListener(mStepCounterListener);
 
         GlobalScope.launch(Dispatchers.IO) {
             step_handler()
@@ -147,27 +115,8 @@ class StepCounter : Service(){
     }
 
     override fun onDestroy() {
-//        sensorManager.unregisterListener(mStepCounterListener)
         super.onDestroy()
     }
-
-
-
-    // Get readings from accelerometer and magnetometer. To simplify calculations,
-    // consider storing these readings as unit vectors.
-//    override fun onSensorChanged(event: SensorEvent) {
-//        if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-//            System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
-//        } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
-//            System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
-//        } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
-//            System.arraycopy(event.values, 0, linearAccelerometerReading, 0, linearAccelerometerReading.size)
-//        } else if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
-//            step_count = event.values[0].toInt()
-//            Log.d("STEPS", step_count.toString())
-//        }
-////        step_handler()
-//    }
 
     // Compute the three orientation angles based on the most recent readings from
     // the device's accelerometer and magnetometer.

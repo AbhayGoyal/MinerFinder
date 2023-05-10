@@ -1,6 +1,5 @@
 package com.example.minerfinder
 
-//import com.example.minecomms.databinding.ActivityConnectionBinding
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -26,7 +25,6 @@ import java.sql.Timestamp
 import kotlin.math.abs
 import kotlin.math.pow
 
-
 class Sensors : AppCompatActivity(), SensorEventListener {
 
     private val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 90
@@ -41,34 +39,8 @@ class Sensors : AppCompatActivity(), SensorEventListener {
     private val rotationMatrix = FloatArray(9)
     private val orientationAngles = FloatArray(3)
 
-    private var xTot = 0.0
-    private var yTot = 0.0
-    private var startTime = Timestamp(0)
-    private var curTime = Timestamp(0)
-    private var timeDiff = 0.0
-    private var hyp = 0.0
-    private var v0 = 0.0
-    private var angle = 0.0
-
-    private var v0x = 0.0
-    private var v0y = 0.0
-    private var count = 0
-
     private var step_count = 0
-    private var accel_iter = 0
-    private var init_x = 0f
-    private var init_y = 0f
-    private var init_z = 0f
-
-    // time, angle, steps
-    private var step_cur_time = Timestamp(0)
-    private var step_start_time = Timestamp(0)
-    private var step_mid_time = Timestamp(0)
-    val step_hist = MutableList(0) { listOf<Any>() }
-    private var prev_steps = 0
     private val avg_step_size = 0.76 // meters
-    private var step_x = 0.0
-    private var step_y = 0.0
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -222,7 +194,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             val startTime = System.currentTimeMillis()
             for (i in 0 until INTERVAL) {
                 delay(1000)
-//                Log.d("read 99", step_count.toString())
                 currentSteps = step_count - lastSteps
                 lastSteps = step_count
                 distance = currentSteps * avg_step_size
@@ -241,63 +212,11 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             y = 0.0
             // velo in m/s
             val timeDiff = (System.currentTimeMillis() - startTime) / 1000
-//            val data = MovementData(comp[1].toFloat(), (comp[0] / timeDiff).toFloat(), pillar)
             val data = comp[1].toFloat().toString() + "," + (comp[0] / timeDiff).toFloat() + "," + pillar
             Log.d("movdata", data.toString())
             saveJson(data.toString())
         }
     }
-
-//    private fun step_handler2() {
-//        // set up first ever run
-//        if(step_start_time == Timestamp(0)) {
-//            step_start_time = Timestamp(System.currentTimeMillis())
-//            step_cur_time = step_start_time
-//            step_mid_time = step_cur_time
-//            prev_steps = step_count
-//        }
-//        else {
-//            step_cur_time = Timestamp(System.currentTimeMillis())
-//        }
-//
-//        // inside 60 sec interval
-//        timeDiff = ((step_cur_time.time - step_start_time.time) / 1000.0)
-//
-//        val mag = (step_count - prev_steps) * avg_step_size / ((step_cur_time.time - step_mid_time.time) / 1000.0)
-//        prev_steps = step_count
-//        step_mid_time = step_cur_time
-//        val angle = getAzimuth()
-//        val coord = get_coord(mag, angle.toDouble())
-//        Log.d("STEP_HIST_MGC", listOf(mag, angle, coord).toString())
-//        this.step_x += coord[0].toInt()
-//        this.step_y += coord[1].toInt()
-//
-//        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
-//
-//        if(timeDiff >= 5) {
-//            step_start_time = step_cur_time
-//            val comp = get_comp(step_x, step_y)
-//            val ret = listOf<Any>(step_cur_time, comp[0] / timeDiff, comp[1])
-//            step_hist.add(ret)
-//            step_x = 0.0
-//            step_y = 0.0
-//            prev_steps = step_count
-//
-//            Log.d("STEP_HIST_LOG", step_hist.toString())
-//
-////            val json = JSONObject()
-//            val data = MovementData(comp[1].toFloat(), comp[0].toFloat(), "A")
-////            json.put(Timestamp(System.currentTimeMillis()).toString(), data)
-////            Log.d("json", json.toString())
-//            saveJson(data.toString())
-//        }
-//
-//        step_mid_time = step_cur_time
-//        prev_steps = step_count
-//
-//        Log.d("STEP_HIST_XY", step_x.toString() + "," + step_y.toString())
-//
-//    }
 
     private fun readJson(fileName: String) {
         val fileName = "${Helper().getLocalUserName(applicationContext)}.json"
@@ -305,12 +224,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         val jsonString = fileInputStream.bufferedReader().use { it.readText() }
         val jsonObject = JSONObject(jsonString)
         Log.d("json read", jsonObject.toString())
-//        val pillarRatios30 = ratios(jsonObject, 30*60)
-//        val pillarRatios60 = ratios(jsonObject, 60*60)
-//        val pillarRatios180 = ratios(jsonObject, 180*60)
-//        regionRatios(pillarRatios30, 30*60)
-//        regionRatios(pillarRatios60, 60*60)
-//        regionRatios(pillarRatios180, 180*60)
         regionHandler(jsonObject)
     }
 
@@ -350,7 +263,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         val jsonOutString = jsonObject.toString()
         fileOutputStream.write(jsonOutString.toByteArray())
         fileOutputStream.close()
-
 
         runOnUiThread {
             displayJson(jsonOutString)
@@ -401,21 +313,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         minerDisplay.text = "Miner Data:\n$m"
     }
 
-//    fun getLocalUserName(): String {
-//        val db : AppDatabase = Room.databaseBuilder(
-//            applicationContext,
-//            AppDatabase::class.java, "database-name"
-//        ).allowMainThreadQueries().fallbackToDestructiveMigration().build()
-//
-//        val user = db.userDao().findActive()
-//
-//        if (user != null) {
-//            return user.username.toString()
-//        }
-//
-//        return "x"
-//    }
-
     fun get_coord(magnitude: Double, degrees: Double): List<Double> {
         val angle = Math.toRadians(degrees)
         val x = magnitude * Math.cos(angle)
@@ -424,14 +321,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
     }
 
     fun get_comp(x: Double, y: Double): List<Double> {
-//        var adj = 0
-//        if(x > 0.0 && y < 0.0)
-//            adj = 90
-//        else if(x < 0.0 && y < 0.0)
-//            adj = 180
-//        else if(x < 0.0 && y > 0.0)
-//            adj = 270
-
         val mag = (x.pow(2) + y.pow(2)).pow(0.5)
         var angle = Math.toDegrees(Math.atan2(y, x))
 //        val angle = Math.toDegrees(Math.acos(y / mag))
@@ -441,50 +330,9 @@ class Sensors : AppCompatActivity(), SensorEventListener {
         return listOf(mag, angle)
     }
 
-    // timespan in seconds
-//    private fun ratios(jsonObject: JSONObject, timespan: Int = 10800) {
-//        val pillarCounts = mutableMapOf<String, Int>()
-//        var isFirst = true
-//        var oldTime = Timestamp(0)
-//        var timeDiff = 0
-//        for (key in jsonObject.keys()) {
-//            val values = jsonObject.get(key).toString().split(",")
-//            val pillar = values[2]
-//            val time = Timestamp.valueOf(key)
-//
-//            if (!isFirst) {
-//                timeDiff = ((time.time - oldTime.time) / 1000).toInt() // in seconds
-//            }
-//            else {
-//                isFirst = false
-//                timeDiff = 120
-//            }
-//            oldTime = time
-//
-//            // check if were within timespan
-//            if ((System.currentTimeMillis() - time.time) / 1000 > timespan) {
-//                continue
-//            }
-//
-//            if (pillarCounts.containsKey(pillar)) {
-//                pillarCounts[pillar] = pillarCounts[pillar]!! + timeDiff
-//            } else {
-//                pillarCounts[pillar] = timeDiff
-//            }
-//        }
-//
-//        Log.d("ratios", pillarCounts.toString())
-//
-//        val total = pillarCounts.values.sum()
-//        val letterRatios = pillarCounts.mapValues { (_, count) -> count.toFloat() / total }
-//        Log.d("ratios", letterRatios.toString())
-//    }
-
     private fun ratios(jsonObject: JSONObject, timespan: Int = 10800): Map<String, Float> {
         val pillarCounts = mutableMapOf<String, Int>()
-        var isFirst = true
         var lastPiller = "none"
-        var timeDiff = 0
         for (key in jsonObject.keys()) {
             val values = jsonObject.get(key).toString().split(",")
             val pillar = values[2]
@@ -528,11 +376,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             }
         }
 
-//        runOnUiThread {
-//            val regionsDisplay: TextView = findViewById<TextView>(R.id.region_data_30)
-//            regionsDisplay.text = "Region Data: " + (timespan / 60).toString() + "\n$regions\n"
-//        }
-
         Log.d("regionsratios", regions.toString())
         return regions
     }
@@ -540,11 +383,9 @@ class Sensors : AppCompatActivity(), SensorEventListener {
     fun regionHandler(jsonObject: JSONObject) {
         val pillar30 = ratios(jsonObject, 30*60)
         val pillar60 = ratios(jsonObject, 60*60)
-        val pillar90 = ratios(jsonObject, 90*60)
         val pillar120 = ratios(jsonObject, 120*60)
         val region30 = regionRatios(pillar30)
         val region60 = regionRatios(pillar60)
-        val region90 = regionRatios(pillar90)
         val region120 = regionRatios(pillar120)
 
         runOnUiThread {
@@ -552,8 +393,6 @@ class Sensors : AppCompatActivity(), SensorEventListener {
             regions30Display.text = "Region Data (30 min):\n${String.format("%.2f",region30)}\n"
             val regions60Display: TextView = findViewById<TextView>(R.id.region_data60)
             regions60Display.text = "Region Data (60 min):\n$region60\n"
-//            val regions90Display: TextView = findViewById<TextView>(R.id.region_data90)
-//            regions90Display.text = "Region Data (90 min):\n$region90\n"
             val regions120Display: TextView = findViewById<TextView>(R.id.region_data120)
             regions120Display.text = "Region Data (120 min):\n$region120\n"
         }
